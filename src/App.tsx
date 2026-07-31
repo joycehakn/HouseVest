@@ -379,7 +379,7 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
             {profile.customAcquisitionCosts.length === 0 && <p>尚未新增自訂項目</p>}
             {profile.customAcquisitionCosts.map(cost => <div className="customCostRow" key={cost.id}>
               <input aria-label="自訂成本名稱" placeholder="例如：履約保證費" value={cost.name} onChange={event => updateCustomCost(cost.id, { name: event.target.value })}/>
-              <div><input aria-label={`${cost.name || '自訂成本'}金額`} type="number" min="0" value={cost.amount} onChange={event => updateCustomCost(cost.id, { amount: Number(event.target.value) })}/><em>元</em></div>
+              <div><input aria-label={`${cost.name || '自訂成本'}金額`} type="number" min="0" placeholder="0" value={cost.amount || ''} onChange={event => updateCustomCost(cost.id, { amount: event.target.value === '' ? 0 : Number(event.target.value) })}/><em>元</em></div>
               <button type="button" aria-label={`刪除${cost.name || '自訂成本'}`} onClick={() => removeCustomCost(cost.id)}><Trash2 size={14}/></button>
             </div>)}
           </div>
@@ -409,7 +409,7 @@ function TextInput({ label, value, type = 'text', required = false, onChange }: 
 }
 
 function NumberInput({ label, value, suffix = '元', step = 1, onChange }: { label: string; value: number; suffix?: string; step?: number; onChange: (value: number) => void }) {
-  return <label className="editorField"><span>{label}</span><div><input type="number" min="0" step={step} value={value} onChange={event => onChange(Number(event.target.value))} /><em>{suffix}</em></div></label>
+  return <label className="editorField"><span>{label}</span><div><input type="number" min="0" step={step} placeholder="0" value={value || ''} onChange={event => onChange(event.target.value === '' ? 0 : Number(event.target.value))} /><em>{suffix}</em></div></label>
 }
 
 function Field({ label, value, suffix, step = 1, onChange }: { label: string; value: number; suffix: string; step?: number; onChange: (v: number) => void }) {

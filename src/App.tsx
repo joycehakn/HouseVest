@@ -156,6 +156,23 @@ function App() {
       ],
       note: `目前稅額 = max(售價 − 購入價 − 取得成本 − 出售成本, 0) × 假設稅率。尚未納入土地漲價總數額、自住優惠、可扣除費用認定等正式稅務規則。課稅所得目前為 ${nt(result.taxableGain)}。`,
     },
+    transactionTax: {
+      title: '房地交易所得稅初估',
+      result: nt(result.tax),
+      summary: '先把目前已知的成交價、取得成本與出售費用攤開，顯示現階段的所得稅初估。這還不是可申報的正式稅額。',
+      formula: '初估稅額 = max(成交價 − 購入價 − 取得成本 − 出售成本, 0) × 暫用稅率',
+      rows: [
+        { label: '預估成交價', value: nt(inputs.salePrice) },
+        { label: '購入價格', value: nt(inputs.purchasePrice), operator: '−' },
+        { label: '可辨識取得成本', value: nt(inputs.acquisitionCosts), operator: '−' },
+        { label: '出售仲介費', value: nt(result.sellingAgencyFee), operator: '−' },
+        { label: '其他出售成本', value: nt(result.otherSellingCosts), operator: '−' },
+        { label: '目前初估課稅所得', value: nt(result.taxableGain), operator: '=' },
+        { label: `暫用稅率（${inputs.taxRate}%）`, value: nt(result.tax), operator: '×' },
+        { label: '房地交易所得稅初估', value: nt(result.tax), operator: '=' },
+      ],
+      note: '尚缺：土地漲價總數額、交易損失扣除、自住房地資格、新舊制判定及特殊交易類型。土地增值稅是另一項地方稅，也尚未計入；因此這個數字不能直接作為申報或簽約依據。',
+    },
     cagr: {
       title: '房屋 CAGR',
       result: pct(result.cagr),
@@ -361,7 +378,7 @@ function App() {
       <header><div><p className="eyebrow">MY PROPERTY</p><h1>{activeProperty.name}資產儀表板</h1><p>{activeProperty.address || '尚未設定地址'}・用同一組已儲存資料理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>
 
       <section className="metrics">
-        <Card label="出售實拿" value={nt(result.netCash)} note="扣交易成本、稅與貸款" onClick={() => setDetail(details.netCash)} />
+        <Card label="房地交易所得稅初估" value={nt(result.tax)} note="查看所得、成本、費用與尚缺資料" onClick={() => setDetail(details.transactionTax)} />
       </section>
 
       <section className="grid">
@@ -372,6 +389,7 @@ function App() {
             <table className="scenarioTable">
               <thead><tr><th>投資績效</th>{scenarioComparisons.map(item => <th className={item.offset === 0 ? 'baseline' : ''} key={item.offset}><span>{item.label}</span><strong>{nt(item.salePrice)}</strong></th>)}</tr></thead>
               <tbody>
+                <tr><th>所得稅初估</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.tax)}</td>)}</tr>
                 <tr><th>出售實拿</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.netCash)}</td>)}</tr>
                 <tr><th>稅後獲利</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.profit)}</td>)}</tr>
                 <tr><th>房屋 CAGR</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{pct(item.result.cagr)}</td>)}</tr>
@@ -402,7 +420,7 @@ function App() {
             </div>)}
             <div className="sellingCostTotal"><span>出售成本合計</span><strong>{nt(result.saleCosts)}</strong></div>
           </div>
-          <Field label="房地合一稅率" value={inputs.taxRate} suffix="%" step={1} onChange={v => updateScenarioNumber('taxRate', v)} />
+          <Field label="暫用所得稅率" value={inputs.taxRate} suffix="%" step={1} onChange={v => updateScenarioNumber('taxRate', v)} />
         </article>
       </section>
 

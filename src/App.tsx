@@ -36,7 +36,7 @@ const initialScenario: ScenarioInputs = {
 
 const money = (n: number) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Math.round(n))
 const pct = (n: number) => `${n.toFixed(1)}%`
-const nt = (n: number) => `NT$ ${money(n)}`
+const nt = (n: number) => money(n)
 const dayAfter = (date: string) => {
   const value = new Date(`${date}T00:00:00Z`)
   value.setUTCDate(value.getUTCDate() + 1)
@@ -384,7 +384,7 @@ function App() {
 
         <article className="panel controls">
           <div className="panelTitle"><div><p className="eyebrow">LIVE SCENARIO</p><h2>成交價情境</h2></div><SlidersHorizontal size={20}/></div>
-          <label className="priceInput"><span>預估成交價</span><div><em>NT$</em><input aria-label="預估成交價" type="number" min="0" step="10000" placeholder="直接輸入金額" value={inputs.salePrice || ''} onChange={event => updateScenarioNumber('salePrice', event.target.value === '' ? 0 : Number(event.target.value))}/><small>元</small></div></label>
+          <label className="priceInput"><span>預估成交價</span><div><input aria-label="預估成交價" type="number" min="0" step="10000" placeholder="直接輸入金額" value={inputs.salePrice || ''} onChange={event => updateScenarioNumber('salePrice', event.target.value === '' ? 0 : Number(event.target.value))}/></div></label>
           <div className="savedFact"><span>購入成交日</span><strong>{activeProperty.purchaseDate}</strong></div>
           <DateField label="出售成交日" value={inputs.saleDate} min={activeProperty.mortgageDataDate} onChange={updateSaleDate} />
           <div className="holdingPeriod"><span>自動計算持有期間</span><strong>{money(result.holdingDays)} 天・{result.holdingYears.toFixed(3)} 年</strong></div>
@@ -397,7 +397,7 @@ function App() {
             {scenario.customSellingCosts.length === 0 && <p>目前沒有其他固定費用</p>}
             {scenario.customSellingCosts.map(cost => <div className="sellingCostRow" key={cost.id}>
               <label><span>費用名稱</span><input aria-label="出售成本名稱" placeholder="例如：代書費、清潔費" value={cost.name} onChange={event => updateSellingCost(cost.id, { name: event.target.value })} /></label>
-              <label><span>金額</span><div><em>NT$</em><input aria-label={`${cost.name || '出售成本'}金額`} type="number" min="0" placeholder="0" value={cost.amount || ''} onChange={event => updateSellingCost(cost.id, { amount: event.target.value === '' ? 0 : Number(event.target.value) })} /></div></label>
+              <label><span>金額</span><div><input aria-label={`${cost.name || '出售成本'}金額`} type="number" min="0" placeholder="0" value={cost.amount || ''} onChange={event => updateSellingCost(cost.id, { amount: event.target.value === '' ? 0 : Number(event.target.value) })} /></div></label>
               <button type="button" aria-label={`刪除${cost.name || '出售成本'}`} onClick={() => removeSellingCost(cost.id)}><Trash2 size={13}/></button>
             </div>)}
             <div className="sellingCostTotal"><span>出售成本合計</span><strong>{nt(result.saleCosts)}</strong></div>
@@ -503,7 +503,7 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
             {profile.customAcquisitionCosts.length === 0 && <p>尚未新增自訂項目</p>}
             {profile.customAcquisitionCosts.map(cost => <div className="customCostRow" key={cost.id}>
               <input aria-label="自訂成本名稱" placeholder="例如：履約保證費" value={cost.name} onChange={event => updateCustomCost(cost.id, { name: event.target.value })}/>
-              <div><input aria-label={`${cost.name || '自訂成本'}金額`} type="number" min="0" placeholder="0" value={cost.amount || ''} onChange={event => updateCustomCost(cost.id, { amount: event.target.value === '' ? 0 : Number(event.target.value) })}/><em>元</em></div>
+              <div><input aria-label={`${cost.name || '自訂成本'}金額`} type="number" min="0" placeholder="0" value={cost.amount || ''} onChange={event => updateCustomCost(cost.id, { amount: event.target.value === '' ? 0 : Number(event.target.value) })}/></div>
               <button type="button" aria-label={`刪除${cost.name || '自訂成本'}`} onClick={() => removeCustomCost(cost.id)}><Trash2 size={14}/></button>
             </div>)}
           </div>
@@ -553,8 +553,8 @@ function TextInput({ label, value, type = 'text', required = false, onChange }: 
   return <label className="editorField"><span>{label}</span><input type={type} value={value} required={required} onChange={event => onChange(event.target.value)} /></label>
 }
 
-function NumberInput({ label, value, suffix = '元', step = 1, onChange }: { label: string; value: number; suffix?: string; step?: number; onChange: (value: number) => void }) {
-  return <label className="editorField"><span>{label}</span><div><input type="number" min="0" step={step} placeholder="0" value={value || ''} onChange={event => onChange(event.target.value === '' ? 0 : Number(event.target.value))} /><em>{suffix}</em></div></label>
+function NumberInput({ label, value, suffix = '', step = 1, onChange }: { label: string; value: number; suffix?: string; step?: number; onChange: (value: number) => void }) {
+  return <label className="editorField"><span>{label}</span><div><input type="number" min="0" step={step} placeholder="0" value={value || ''} onChange={event => onChange(event.target.value === '' ? 0 : Number(event.target.value))} />{suffix && <em>{suffix}</em>}</div></label>
 }
 
 function Field({ label, value, suffix, step = 1, onChange }: { label: string; value: number; suffix: string; step?: number; onChange: (v: number) => void }) {

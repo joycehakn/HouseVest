@@ -4,6 +4,8 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Building2, Calculator, Camera, HousePlus, Landmark, LineChart, Pencil, PiggyBank, Plus, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
 import {
   calculatePropertyAnalysis,
+  calculateHoldingPeriod,
+  mortgagePayment,
   type PropertyInputs as Inputs,
 } from './calculations/propertyAnalysis'
 import {
@@ -66,6 +68,9 @@ function App() {
     originalLoan: activeProperty.originalLoan,
     currentLoanBalance: activeProperty.currentLoanBalance,
     totalMortgagePaymentsPaid: activeProperty.totalMortgagePaymentsPaid,
+    mortgagePaymentMode: activeProperty.mortgagePaymentMode,
+    paymentEstimateAnnualRate: activeProperty.paymentEstimateAnnualRate,
+    originalLoanTermYears: activeProperty.originalLoanTermYears,
     annualRate: activeProperty.annualRate,
     remainingLoanYears: activeProperty.remainingLoanYears,
     purchaseDate: activeProperty.purchaseDate,
@@ -145,23 +150,26 @@ function App() {
       rows: [
         { label: '購入至出售日期', value: `${inputs.purchaseDate} → ${inputs.saleDate}` },
         { label: '期初自有資金', value: `−${nt(result.initialEquity)}` },
-        { label: '平均每月歷史付款', value: `−${nt(result.averageHistoricalMonthlyPayment)}` },
+        { label: '付款資料來源', value: result.mortgagePaymentMode === 'actual' ? '手動輸入實際總額' : '本息平均攤還公式推估' },
+        { label: result.mortgagePaymentMode === 'actual' ? '平均每月歷史付款' : '公式推估每月付款', value: `−${nt(result.averageHistoricalMonthlyPayment)}` },
         { label: '付款期數', value: `${result.paidMonths} 期` },
         { label: '累積房貸付款', value: `−${nt(result.totalMortgagePayments)}` },
         { label: '出售月份回收', value: nt(result.netCash) },
         { label: '年化 IRR', value: Number.isFinite(result.leveragedIrr) ? pct(result.leveragedIrr) : '無法計算', operator: '=' },
       ],
-      note: '累積房貸付款為手動事實值，目前平均分配到每個月估算 IRR。若各月付款差異很大，要做到完全精確仍需逐月繳款紀錄；持有稅費、管理費、修繕與租金也尚未納入。',
+      note: result.mortgagePaymentMode === 'actual'
+        ? '目前採用手動輸入的實際總額，再平均分配到每個月估算 IRR。若各月付款差異很大，要完全精確仍需逐月繳款紀錄。'
+        : `目前採公式推估：原始貸款 ${nt(inputs.originalLoan)}、平均利率 ${inputs.paymentEstimateAnnualRate}%、原始年限 ${inputs.originalLoanTermYears} 年。利率變動、寬限期或提前還款都會造成差異。`,
     },
     profit: {
       title: '稅後獲利',
       result: nt(result.profit),
-      summary: '把出售實拿減去期初自有資金，以及持有期間實際繳出的全部房貸款。',
+      summary: `把出售實拿減去期初自有資金，以及持有期間${result.mortgagePaymentMode === 'actual' ? '實際輸入' : '公式推估'}的全部房貸款。`,
       formula: '稅後獲利 = 出售實拿 − 期初自有資金 − 累積房貸付款',
       rows: [
         { label: '出售實拿', value: nt(result.netCash) },
         { label: '期初自有資金', value: nt(result.initialEquity), operator: '−' },
-        { label: '累積房貸付款', value: nt(result.totalMortgagePayments), operator: '−' },
+        { label: `累積房貸付款（${result.mortgagePaymentMode === 'actual' ? '實際' : '推估'}）`, value: nt(result.totalMortgagePayments), operator: '−' },
         { label: '稅後獲利', value: nt(result.profit), operator: '=' },
       ],
       note: '此處的「稅後」沿用上方簡化稅額，且尚未納入持有稅費、裝修、修繕、租金與其他現金流。',
@@ -226,7 +234,10 @@ function App() {
       purchasePrice: 0,
       originalLoan: 0,
       currentLoanBalance: 0,
+      mortgagePaymentMode: 'actual',
       totalMortgagePaymentsPaid: 0,
+      paymentEstimateAnnualRate: 0,
+      originalLoanTermYears: 30,
       currentMarketValue: 0,
     })
   }
@@ -295,7 +306,7 @@ function App() {
         <div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="year"/><YAxis tickFormatter={v => `${v}萬`}/><Tooltip formatter={(v) => [`${money(Number(v))} 萬`, '淨資產']}/><Area type="monotone" dataKey="equity" stroke="currentColor" fill="currentColor" fillOpacity={0.12}/></AreaChart></ResponsiveContainer></div>
       </section>
       {detail && <CalculationDrawer detail={detail} onClose={() => setDetail(null)} />}
-      {editingProperty && <PropertyEditor profile={editingProperty} onChange={setEditingProperty} onSave={saveProfile} onClose={() => setEditingProperty(null)} />}
+      {editingProperty && <PropertyEditor profile={editingProperty} saleDate={scenario.saleDate} onChange={setEditingProperty} onSave={saveProfile} onClose={() => setEditingProperty(null)} />}
     </main>
   </div>
 }
@@ -325,11 +336,11 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
   </div>
 }
 
-function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: PropertyProfile; onChange: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
+function PropertyEditor({ profile, saleDate, onChange, onSave, onClose }: { profile: PropertyProfile; saleDate: string; onChange: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
   const [recognizing, setRecognizing] = useState(false)
   const updateText = (key: 'name' | 'address' | 'purchaseDate', value: string) =>
     onChange({ ...profile, [key]: value })
-  const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue', value: number) =>
+  const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'paymentEstimateAnnualRate' | 'originalLoanTermYears' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue', value: number) =>
     onChange({ ...profile, [key]: value })
   const updateCost = (key: keyof PropertyProfile['acquisitionCosts'], value: number) =>
     onChange({ ...profile, acquisitionCosts: { ...profile.acquisitionCosts, [key]: value } })
@@ -353,6 +364,12 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
   const acquisitionCostTotal = totalAcquisitionCosts(
     profile.acquisitionCosts,
     profile.customAcquisitionCosts,
+  )
+  const estimatedPaidMonths = calculateHoldingPeriod(profile.purchaseDate, saleDate).months
+  const estimatedMonthlyPayment = mortgagePayment(
+    profile.originalLoan,
+    profile.paymentEstimateAnnualRate,
+    profile.originalLoanTermYears,
   )
 
   return <div className="drawerBackdrop" role="presentation" onMouseDown={onClose}>
@@ -388,7 +405,27 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
         <EditorSection title="貸款資料">
           <NumberInput label="原始貸款金額" value={profile.originalLoan} onChange={value => updateNumber('originalLoan', value)} />
           <NumberInput label="目前銀行貸款餘額" value={profile.currentLoanBalance} onChange={value => updateNumber('currentLoanBalance', value)} />
-          <NumberInput label="出售前累積房貸付款" value={profile.totalMortgagePaymentsPaid} onChange={value => updateNumber('totalMortgagePaymentsPaid', value)} />
+          <div className="paymentMode">
+            <span>累積房貸付款輸入方法</span>
+            <div>
+              <button type="button" className={profile.mortgagePaymentMode === 'actual' ? 'active' : ''} onClick={() => onChange({ ...profile, mortgagePaymentMode: 'actual' })}>實際金額</button>
+              <button type="button" className={profile.mortgagePaymentMode === 'estimated' ? 'active' : ''} onClick={() => onChange({ ...profile, mortgagePaymentMode: 'estimated' })}>公式推估</button>
+            </div>
+          </div>
+          {profile.mortgagePaymentMode === 'actual'
+            ? <NumberInput label="已支付房貸總額（本金＋利息）" value={profile.totalMortgagePaymentsPaid} onChange={value => updateNumber('totalMortgagePaymentsPaid', value)} />
+            : <>
+              <NumberInput label="持有期間推估平均利率" value={profile.paymentEstimateAnnualRate} step={0.01} suffix="%" onChange={value => updateNumber('paymentEstimateAnnualRate', value)} />
+              <NumberInput label="原始貸款年限" value={profile.originalLoanTermYears} suffix="年" onChange={value => updateNumber('originalLoanTermYears', value)} />
+              <div className="estimateResult">
+                <span>推估公式</span>
+                <code>月付金 × 購入至出售期數</code>
+                <div><span>推估月付</span><strong>{nt(estimatedMonthlyPayment)}</strong></div>
+                <div><span>推估期數</span><strong>{estimatedPaidMonths} 期</strong></div>
+                <div><span>累積付款推估</span><strong>{nt(estimatedMonthlyPayment * estimatedPaidMonths)}</strong></div>
+                <p>採本息平均攤還假設；利率變動、寬限期與提前還款會造成差異。</p>
+              </div>
+            </>}
           <NumberInput label="目前房貸利率" value={profile.annualRate} step={0.01} suffix="%" onChange={value => updateNumber('annualRate', value)} />
           <NumberInput label="剩餘貸款年限" value={profile.remainingLoanYears} suffix="年" onChange={value => updateNumber('remainingLoanYears', value)} />
         </EditorSection>

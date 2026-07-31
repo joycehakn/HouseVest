@@ -4,6 +4,9 @@ export type PropertyInputs = {
   originalLoan: number
   currentLoanBalance: number
   totalMortgagePaymentsPaid: number
+  mortgagePaymentMode: "actual" | "estimated"
+  paymentEstimateAnnualRate: number
+  originalLoanTermYears: number
   annualRate: number
   remainingLoanYears: number
   salePrice: number
@@ -21,6 +24,7 @@ export type PropertyAnalysis = {
   futureMonthlyPayment: number
   paidMonths: number
   totalMortgagePayments: number
+  mortgagePaymentMode: "actual" | "estimated"
   balance: number
   saleCosts: number
   taxableGain: number
@@ -63,6 +67,7 @@ export function mortgagePayment(
   annualRatePercent: number,
   years: number,
 ): number {
+  if (principal <= 0 || years <= 0) return 0
   const monthlyRate = annualRatePercent / 100 / 12
   const months = years * 12
 
@@ -148,14 +153,22 @@ export function calculatePropertyAnalysis(
   )
   const totalCost = inputs.purchasePrice + inputs.acquisitionCosts
   const paidMonths = holdingPeriod.months
+  const estimatedMonthlyPayment = mortgagePayment(
+    inputs.originalLoan,
+    inputs.paymentEstimateAnnualRate,
+    inputs.originalLoanTermYears,
+  )
+  const estimatedTotalMortgagePayments = estimatedMonthlyPayment * paidMonths
+  const totalMortgagePayments = inputs.mortgagePaymentMode === "actual"
+    ? inputs.totalMortgagePaymentsPaid
+    : estimatedTotalMortgagePayments
   const averageHistoricalMonthlyPayment =
-    inputs.totalMortgagePaymentsPaid / paidMonths
+    totalMortgagePayments / paidMonths
   const futureMonthlyPayment = mortgagePayment(
     inputs.currentLoanBalance,
     inputs.annualRate,
     inputs.remainingLoanYears,
   )
-  const totalMortgagePayments = inputs.totalMortgagePaymentsPaid
   const balance = inputs.currentLoanBalance
   const saleCosts = (inputs.salePrice * inputs.saleCostsRate) / 100
   const taxableGain = Math.max(
@@ -197,6 +210,7 @@ export function calculatePropertyAnalysis(
     futureMonthlyPayment,
     paidMonths,
     totalMortgagePayments,
+    mortgagePaymentMode: inputs.mortgagePaymentMode,
     balance,
     saleCosts,
     taxableGain,

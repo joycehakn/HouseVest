@@ -13,6 +13,9 @@ const inputs: PropertyInputs = {
   originalLoan: 11_980_000,
   currentLoanBalance: 10_485_197,
   totalMortgagePaymentsPaid: 2_721_992,
+  mortgagePaymentMode: "actual",
+  paymentEstimateAnnualRate: 2.18,
+  originalLoanTermYears: 30,
   annualRate: 2.18,
   remainingLoanYears: 25,
   salePrice: 17_500_000,
@@ -41,6 +44,30 @@ describe("calculateHoldingPeriod", () => {
 describe("mortgage calculations", () => {
   it("calculates a future payment from the current balance and assumptions", () => {
     expect(mortgagePayment(10_485_197, 2.18, 25)).toBeCloseTo(45_366.52, 2)
+  })
+
+  it("can estimate cumulative payments from the amortized monthly payment", () => {
+    const result = calculatePropertyAnalysis({
+      ...inputs,
+      mortgagePaymentMode: "estimated",
+      paymentEstimateAnnualRate: 2,
+      originalLoanTermYears: 30,
+    })
+    const expectedMonthlyPayment = mortgagePayment(
+      inputs.originalLoan,
+      2,
+      30,
+    )
+
+    expect(result.mortgagePaymentMode).toBe("estimated")
+    expect(result.averageHistoricalMonthlyPayment).toBeCloseTo(
+      expectedMonthlyPayment,
+      6,
+    )
+    expect(result.totalMortgagePayments).toBeCloseTo(
+      expectedMonthlyPayment * result.paidMonths,
+      6,
+    )
   })
 })
 

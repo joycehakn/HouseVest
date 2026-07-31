@@ -22,7 +22,10 @@ export type PropertyProfile = {
   customAcquisitionCosts: CustomAcquisitionCost[]
   originalLoan: number
   currentLoanBalance: number
+  mortgagePaymentMode: "actual" | "estimated"
   totalMortgagePaymentsPaid: number
+  paymentEstimateAnnualRate: number
+  originalLoanTermYears: number
   annualRate: number
   remainingLoanYears: number
   currentMarketValue: number
@@ -53,7 +56,10 @@ export const defaultProperty: PropertyProfile = {
   ],
   originalLoan: 11_980_000,
   currentLoanBalance: 10_485_197,
-  totalMortgagePaymentsPaid: 2_721_992,
+  mortgagePaymentMode: "estimated",
+  totalMortgagePaymentsPaid: 0,
+  paymentEstimateAnnualRate: 2.18,
+  originalLoanTermYears: 30,
   annualRate: 2.18,
   remainingLoanYears: 25,
   currentMarketValue: 17_500_000,
@@ -107,6 +113,22 @@ function migrateProperty(profile: PropertyProfile): PropertyProfile {
       legalFee: Number(legacyCosts.legalFee) || 0,
     },
     customAcquisitionCosts: customCosts,
+    mortgagePaymentMode:
+      profile.mortgagePaymentMode === "actual" ||
+      profile.mortgagePaymentMode === "estimated"
+        ? profile.mortgagePaymentMode
+        : profile.id === "property-a" &&
+            profile.totalMortgagePaymentsPaid === 2_721_992
+          ? "estimated"
+          : "actual",
+    totalMortgagePaymentsPaid:
+      profile.id === "property-a" &&
+      profile.totalMortgagePaymentsPaid === 2_721_992
+        ? 0
+        : Number(profile.totalMortgagePaymentsPaid) || 0,
+    paymentEstimateAnnualRate:
+      Number(profile.paymentEstimateAnnualRate) || Number(profile.annualRate) || 0,
+    originalLoanTermYears: Number(profile.originalLoanTermYears) || 30,
   }
 }
 

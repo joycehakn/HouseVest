@@ -336,7 +336,7 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
     <aside className="drawer propertyEditor" role="dialog" aria-modal="true" aria-label="房屋基本資料" onMouseDown={event => event.stopPropagation()}>
       <div className="drawerHeader"><div><p className="eyebrow">PROPERTY DATABASE</p><h2>房屋基本資料</h2></div><button aria-label="關閉房屋基本資料" onClick={onClose}><X size={20}/></button></div>
       <p className="drawerSummary">儲存後，Dashboard、出售分析、CAGR 與 IRR 都會共用這份資料。</p>
-      <button className="openRecognition" type="button" onClick={() => setRecognizing(true)}><Camera size={17}/>從多張文件照片帶入資料</button>
+      <button className="openRecognition" type="button" onClick={() => setRecognizing(true)}><Camera size={17}/>免費從多張文件照片帶入</button>
       <form onSubmit={event => { event.preventDefault(); onSave(profile) }}>
         <EditorSection title="識別資料">
           <TextInput label="房屋名稱" value={profile.name} onChange={value => updateText('name', value)} required />

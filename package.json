@@ -5,9 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "ai:server": "node server/server.mjs",
     "build": "tsc -b && vite build",
-    "build:sites": "tsc -b && SITES_BUILD=true vite build && node scripts/build-sites.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview"

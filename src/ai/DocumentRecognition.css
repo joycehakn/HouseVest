@@ -22,6 +22,7 @@
 .consent input{margin-top:2px}
 .recognizeButton{width:100%;border:0;border-radius:11px;padding:12px;background:#246bce;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer}
 .recognizeButton:disabled{background:#aebccc;cursor:not-allowed}
+.ocrProgress{background:#f4f7fb;border-radius:11px;padding:12px;margin:14px 0}.ocrProgress>div{display:flex;justify-content:space-between;font-size:12px}.ocrProgress progress{width:100%;height:8px;margin:8px 0}.ocrProgress small{display:block;color:#6c7c91;font-size:10px}
 .aiError{background:#fff0f0;border:1px solid #f2caca;color:#8a3030;border-radius:10px;padding:11px;font-size:12px;margin:12px 0}
 .aiWarnings{background:#fff8e8;border:1px solid #f2dfaa;border-radius:11px;padding:12px;margin-bottom:13px}
 .aiWarnings b{font-size:12px}.aiWarnings p{font-size:11px;color:#745f29;margin:5px 0}
@@ -43,4 +44,3 @@
 .spin{animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:620px){.imageGrid{grid-template-columns:repeat(3,1fr)}.imageItem img{height:85px}}
-

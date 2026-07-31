@@ -9,6 +9,7 @@ import {
   type PropertyDocumentExtraction,
 } from './propertyDocument'
 import type { PropertyProfile } from '../properties/propertyProfiles'
+import { recognizePropertyImages, type OcrProgress } from './localOcr'
 import './DocumentRecognition.css'
 
 type SelectedImage = {
@@ -18,7 +19,6 @@ type SelectedImage = {
   size: number
 }
 
-const API_URL = import.meta.env.VITE_AI_API_URL || (import.meta.env.DEV ? 'http://localhost:8787' : '')
 const MAX_IMAGES = 20
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']
@@ -54,8 +54,8 @@ export function DocumentRecognition({
   onClose: () => void
 }) {
   const [images, setImages] = useState<SelectedImage[]>([])
-  const [consent, setConsent] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [progress, setProgress] = useState<OcrProgress | null>(null)
   const [error, setError] = useState('')
   const [extraction, setExtraction] = useState<PropertyDocumentExtraction | null>(null)
   const [selected, setSelected] = useState<ExtractionFieldKey[]>([])
@@ -87,25 +87,18 @@ export function DocumentRecognition({
   }
 
   const recognize = async () => {
-    if (!images.length || !consent) return
+    if (!images.length) return
     setLoading(true)
     setError('')
     setExtraction(null)
+    setProgress({ imageIndex: 1, imageCount: images.length, status: '準備本機辨識', progress: 0 })
     try {
-      const response = await fetch(`${API_URL}/api/property-recognition`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          images: images.map(({ name, dataUrl }) => ({ name, dataUrl })),
-        }),
-      })
-      const payload = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(payload?.error || '辨識失敗，請稍後再試。')
-      setExtraction(payload.extraction)
+      setExtraction(await recognizePropertyImages(images, setProgress))
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '無法連線到 AI 辨識服務。')
+      setError(caught instanceof Error ? caught.message : '本機辨識失敗，請確認網路後重試。')
     } finally {
       setLoading(false)
+      setProgress(null)
     }
   }
 
@@ -115,14 +108,14 @@ export function DocumentRecognition({
       : [...current, key])
 
   return <div className="drawerBackdrop aiBackdrop" role="presentation" onMouseDown={onClose}>
-    <aside className="drawer aiRecognition" role="dialog" aria-modal="true" aria-label="AI 文件辨識" onMouseDown={event => event.stopPropagation()}>
+    <aside className="drawer aiRecognition" role="dialog" aria-modal="true" aria-label="本機文件辨識" onMouseDown={event => event.stopPropagation()}>
       <div className="drawerHeader">
-        <div><p className="eyebrow">CLOUD AI CALIBRATION</p><h2>AI 文件辨識與校準</h2></div>
-        <button aria-label="關閉 AI 文件辨識" onClick={onClose}><X size={20}/></button>
+        <div><p className="eyebrow">ON-DEVICE OCR</p><h2>免費本機辨識與校準</h2></div>
+        <button aria-label="關閉本機文件辨識" onClick={onClose}><X size={20}/></button>
       </div>
 
       {!extraction ? <>
-        <div className="privacyNotice"><ShieldCheck size={22}/><div><b>照片會送到雲端 AI 辨識</b><p>只用於這次擷取，不由 HouseVest 儲存；AI 回傳結果也不會自動寫入房屋資料。</p></div></div>
+        <div className="privacyNotice"><ShieldCheck size={22}/><div><b>照片只在這台裝置處理</b><p>不會上傳房屋文件、不需要 API key，也沒有按次費用。第一次使用需下載免費的中英文辨識元件。</p></div></div>
         <label className="imageDrop">
           <Camera size={25}/>
           <strong>拍照或選擇多張文件</strong>
@@ -138,10 +131,14 @@ export function DocumentRecognition({
             <small title={image.name}>{image.name}</small>
           </div>)}</div>
         </div>}
-        <label className="consent"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)}/><span>我了解所選照片將傳送至雲端 AI，並會在套用前逐項人工確認。</span></label>
         {error && <div className="aiError">{error}</div>}
-        <button className="recognizeButton" disabled={!images.length || !consent || loading} onClick={() => void recognize()}>
-          {loading ? <><LoaderCircle className="spin" size={17}/>正在閱讀 {images.length} 張照片…</> : <><FileImage size={17}/>開始雲端辨識</>}
+        {loading && progress && <div className="ocrProgress">
+          <div><span>照片 {progress.imageIndex} / {progress.imageCount}</span><strong>{Math.round(progress.progress * 100)}%</strong></div>
+          <progress max="1" value={progress.progress}/>
+          <small>{progress.status}</small>
+        </div>}
+        <button className="recognizeButton" disabled={!images.length || loading} onClick={() => void recognize()}>
+          {loading ? <><LoaderCircle className="spin" size={17}/>正在本機閱讀照片…</> : <><FileImage size={17}/>開始免費本機辨識</>}
         </button>
       </> : <>
         <div className="calibrationIntro"><Check size={20}/><div><b>辨識完成，請逐項校準</b><p>80% 以上且無衝突的欄位已預先勾選；仍請依原始照片確認。</p></div></div>

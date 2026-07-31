@@ -77,30 +77,17 @@ console.log(result.nextState);
 3. Source 選擇 `GitHub Actions`。
 4. Commit 到 `main` 後，Actions 會自動建置並部署。
 
-## 雲端 AI 文件辨識
+## 免費本機文件辨識
 
-房屋基本資料可從一批最多 20 張 JPEG、PNG 或 WebP 照片擷取。正式流程刻意分成兩段：
+房屋基本資料可從一批最多 20 張 JPEG、PNG 或 WebP 照片擷取：
 
-1. 瀏覽器把使用者明確選擇的照片送到 HouseVest 後端。
-2. 後端保管 API key，呼叫 OpenAI Responses API，並用固定 JSON Schema 接收欄位、信心分數、來源照片與衝突標記。
-3. 80% 以上且無衝突的欄位才會預先勾選。
-4. 使用者逐項校準、套用到表單，再按一次「儲存並套用」才會更新房屋資料。
+1. 瀏覽器第一次使用時下載免費的 Tesseract OCR 程式與繁體中文、英文辨識資料。
+2. 照片只在使用者的電腦或手機瀏覽器中逐張處理，不會上傳房屋文件。
+3. 本機規則從辨識文字中擷取成交日期、價格、稅費與貸款欄位，並保留來源照片。
+4. 不同照片出現不同數字時會標示衝突。
+5. 使用者逐項校準、套用到表單，再按一次「儲存並套用」才會更新房屋資料。
 
-本機設定：
-
-```bash
-cp .env.example .env.local
-# 在 .env.local 填入 OPENAI_API_KEY，不要提交此檔案
-npm run ai:server
-```
-
-另一個終端執行前端：
-
-```bash
-npm run dev
-```
-
-目前的 GitHub Pages 只能部署前端，無法安全保管 API key 或執行後端。正式上線前需把 `server/` 部署到支援 Node.js 的雲端服務，設定 `OPENAI_API_KEY`、`ALLOWED_ORIGIN`，再於前端建置環境設定 `VITE_AI_API_URL`。請勿把 API key 放入 `VITE_` 變數或任何前端檔案。
+此功能不需要 API key，也沒有按次辨識費用。第一次下載辨識元件時仍需網路；本機 OCR 的準確度與速度會受照片清晰度及裝置效能影響。
 
 ## 第一階段已完成
 

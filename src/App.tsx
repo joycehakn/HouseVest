@@ -27,6 +27,7 @@ import {
   fetchOfficialSectionCode,
   inferCityCode,
 } from './land/officialLandValue'
+import { fetchTaxCpi } from './land/taxCpi'
 
 const landCityOptions = [
   ['A', '臺北市'], ['F', '新北市'], ['H', '桃園市'], ['B', '臺中市'],
@@ -524,7 +525,7 @@ function App() {
         <div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="year"/><YAxis tickFormatter={v => `${v}萬`}/><Tooltip formatter={(v) => [`${money(Number(v))} 萬`, '淨資產']}/><Area type="monotone" dataKey="equity" stroke="currentColor" fill="currentColor" fillOpacity={0.12}/></AreaChart></ResponsiveContainer></div>
       </section>
       {detail && <CalculationDrawer detail={detail} onClose={() => setDetail(null)} />}
-      {editingProperty && <PropertyEditor profile={editingProperty} onChange={setEditingProperty} onPersist={persistProfile} onSave={saveProfile} onClose={() => setEditingProperty(null)} />}
+      {editingProperty && <PropertyEditor profile={editingProperty} saleDate={scenario.saleDate} onChange={setEditingProperty} onPersist={persistProfile} onSave={saveProfile} onClose={() => setEditingProperty(null)} />}
     </main>
   </div>
 }
@@ -559,9 +560,10 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
   </div>
 }
 
-function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { profile: PropertyProfile; onChange: (profile: PropertyProfile) => void; onPersist: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
+function PropertyEditor({ profile, saleDate, onChange, onPersist, onSave, onClose }: { profile: PropertyProfile; saleDate: string; onChange: (profile: PropertyProfile) => void; onPersist: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
   const [recognizing, setRecognizing] = useState(false)
   const [landLookupStatus, setLandLookupStatus] = useState<Record<string, { state: 'loading' | 'success' | 'error'; message: string }>>({})
+  const [cpiLookupStatus, setCpiLookupStatus] = useState<Record<string, { state: 'loading' | 'success' | 'error'; message: string }>>({})
   const updateText = (key: 'name' | 'address' | 'purchaseDate' | 'mortgageDataDate', value: string) =>
     onChange({ ...profile, [key]: value })
   const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'paymentEstimateAnnualRate' | 'originalLoanTermYears' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue', value: number) =>
@@ -648,6 +650,44 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
         [parcel.id]: {
           state: 'error',
           message: error instanceof Error ? error.message : '官方資料查詢失敗',
+        },
+      }))
+    }
+  }
+  const lookupTaxCpi = async (
+    parcel: LandPriceIncrementParcel,
+    mode: 'purchase-date' | 'manual',
+  ) => {
+    const baseYearMonth = mode === 'purchase-date'
+      ? profile.purchaseDate.slice(0, 7)
+      : parcel.previousTransferYearMonth ?? ''
+    updateLandParcel(parcel.id, { previousTransferDateMode: mode })
+    setCpiLookupStatus(current => ({
+      ...current,
+      [parcel.id]: { state: 'loading', message: '正在查詢主計總處資料…' },
+    }))
+    try {
+      const result = await fetchTaxCpi(baseYearMonth, saleDate.slice(0, 7))
+      updateLandParcel(parcel.id, {
+        previousTransferDateMode: mode,
+        cpiAdjustmentPercent: result.adjustmentPercent,
+        cpiLookupAt: new Date().toISOString(),
+        cpiReferenceYearMonth: result.referenceYearMonth,
+        cpiProvider: result.provider,
+      })
+      setCpiLookupStatus(current => ({
+        ...current,
+        [parcel.id]: {
+          state: 'success',
+          message: `已依 ${result.baseYearMonth} 計算為 ${result.adjustmentPercent}%；官方資料截至 ${result.referenceYearMonth}`,
+        },
+      }))
+    } catch (error) {
+      setCpiLookupStatus(current => ({
+        ...current,
+        [parcel.id]: {
+          state: 'error',
+          message: error instanceof Error ? error.message : '物價指數查詢失敗',
         },
       }))
     }
@@ -799,15 +839,20 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
                   <div className="transferDateMode">
                     <span>前次移轉年月輸入方式</span>
                     <div>
-                      <button type="button" className={(parcel.previousTransferDateMode ?? 'purchase-date') === 'purchase-date' ? 'active' : ''} onClick={() => updateLandParcel(parcel.id, { previousTransferDateMode: 'purchase-date' })}>帶入購入成交日</button>
+                      <button type="button" disabled={cpiLookupStatus[parcel.id]?.state === 'loading'} className={(parcel.previousTransferDateMode ?? 'purchase-date') === 'purchase-date' ? 'active' : ''} onClick={() => lookupTaxCpi(parcel, 'purchase-date')}>帶入購入成交日</button>
                       <button type="button" className={parcel.previousTransferDateMode === 'manual' ? 'active' : ''} onClick={() => updateLandParcel(parcel.id, { previousTransferDateMode: 'manual' })}>手動輸入</button>
                     </div>
                   </div>
                   {(parcel.previousTransferDateMode ?? 'purchase-date') === 'purchase-date'
                     ? <div className="savedFact"><span>目前採用年月</span><strong>{profile.purchaseDate.slice(0, 7) || '尚未設定購入成交日'}</strong></div>
-                    : <TextInput label="前次移轉年月" help="請依土地謄本、土地增值稅繳款書或免稅證明書記載的年月輸入。" type="month" value={parcel.previousTransferYearMonth ?? ''} onChange={value => updateLandParcel(parcel.id, { previousTransferYearMonth: value })} />}
+                    : <>
+                      <TextInput label="前次移轉年月" help="請依土地謄本、土地增值稅繳款書或免稅證明書記載的年月輸入。" type="month" value={parcel.previousTransferYearMonth ?? ''} onChange={value => updateLandParcel(parcel.id, { previousTransferYearMonth: value })} />
+                      <button className="lookupCpiButton" type="button" disabled={cpiLookupStatus[parcel.id]?.state === 'loading'} onClick={() => lookupTaxCpi(parcel, 'manual')}>依手動年月查詢物價指數</button>
+                    </>}
                   <NullableNumberInput label="原規定地價或前次移轉現值（每平方公尺）" help="可從土地謄本、前次移轉資料或地方稅捐機關取得。" value={parcel.previousDeclaredValuePerSquareMeter} onChange={value => updateLandParcel(parcel.id, { previousDeclaredValuePerSquareMeter: value })} />
                   <NullableNumberInput label="稅務專用物價指數" help="以百分比輸入，例如120代表120%；請使用財政部試算所連結的稅務專用消費者物價總指數。" value={parcel.cpiAdjustmentPercent} suffix="%" step={0.01} onChange={value => updateLandParcel(parcel.id, { cpiAdjustmentPercent: value })} />
+                  {cpiLookupStatus[parcel.id] && <div className={`lookupStatus ${cpiLookupStatus[parcel.id].state}`}>{cpiLookupStatus[parcel.id].message}</div>}
+                  {parcel.cpiLookupAt && <small>物價資料來源：{parcel.cpiProvider}・基準資料月份 {parcel.cpiReferenceYearMonth}・查詢時間 {new Date(parcel.cpiLookupAt).toLocaleString('zh-TW')}</small>}
                   <NullableNumberInput label="土地宗地面積" help="填土地登記謄本標示的整筆宗地面積，再由下方持分換算你出售的部分。" value={parcel.areaSquareMeters} suffix="㎡" step={0.01} onChange={value => updateLandParcel(parcel.id, { areaSquareMeters: value })} />
                   <div className="ownershipFields">
                     <NumberInput label="持分分子" value={parcel.ownershipNumerator} onChange={value => updateLandParcel(parcel.id, { ownershipNumerator: value })} />

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Bar, BarChart, CartesianGrid, LabelList, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Building2, Calculator, Camera, CircleHelp, HousePlus, Landmark, LineChart as LineChartIcon, Pencil, PiggyBank, Plus, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
+import { Building2, Calculator, Camera, CircleHelp, HousePlus, Landmark, LineChart as LineChartIcon, Pencil, PiggyBank, Plus, RefreshCw, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
 import {
   calculatePropertyAnalysis,
   calculateHoldingPeriod,
@@ -28,6 +28,11 @@ import {
   inferCityCode,
 } from './land/officialLandValue'
 import { fetchTaxCpi } from './land/taxCpi'
+import {
+  createValidationCase,
+  loadValidationCase,
+  saveValidationCase,
+} from './validation/validationCase'
 
 const landCityOptions = [
   ['A', '臺北市'], ['F', '新北市'], ['H', '桃園市'], ['B', '臺中市'],
@@ -122,6 +127,13 @@ function App() {
     saleDate: scenario.saleDate,
   }), [activeProperty, scenario])
   const result = useMemo(() => calculatePropertyAnalysis(inputs), [inputs])
+  const [validationCase, setValidationCase] = useState(() =>
+    loadValidationCase(window.localStorage) ??
+    createValidationCase(activeProperty, scenario, result),
+  )
+  useEffect(() => {
+    saveValidationCase(window.localStorage, validationCase)
+  }, [validationCase])
   const incomeTaxItemLabel = result.taxAnalysis.regime === 'legacy'
     ? '舊制財產交易所得稅'
     : `房地交易所得稅（${result.taxAnalysis.regimeLabel}）`
@@ -474,6 +486,9 @@ function App() {
     setEditingProperty(profile)
     persistProfile(profile)
   }
+  const refreshValidationCase = () => {
+    setValidationCase(createValidationCase(activeProperty, scenario, result))
+  }
 
   return <div className="app">
     <aside>
@@ -492,6 +507,22 @@ function App() {
         <label><span>目前房屋</span><select value={activeProperty.id} onChange={event => selectProperty(event.target.value)}>{database.properties.map(property => <option value={property.id} key={property.id}>{property.name}</option>)}</select></label>
         <div><button onClick={() => setEditingProperty(activeProperty)}><Pencil size={15}/>編輯基本資料</button><button onClick={createProperty}><HousePlus size={16}/>新增房屋</button></div>
       </section>
+      <details className="validationCase" open>
+        <summary><div><strong>案例 A</strong><span>以目前已儲存資料建立的固定驗算基準</span></div><small>{new Date(validationCase.createdAt).toLocaleString('zh-TW')}</small></summary>
+        <div className="validationCaseBody">
+          <div className="validationStatuses"><span className="confirmed">已確認：房屋基本資料</span><span className="estimated">推估：成交價與稅務結果</span><span className="pending">待補：憑證與官方稅額核對</span></div>
+          <div className="validationFacts">
+            <p><span>購入價格</span><strong>{nt(validationCase.property.purchasePrice)}</strong></p>
+            <p><span>案例成交價</span><strong>{nt(validationCase.scenario.salePrice)}</strong></p>
+            <p><span>賣房稅費</span><strong>{nt(validationCase.result.tax)}</strong></p>
+            <p><span>稅後淨利</span><strong>{nt(validationCase.result.profit)}</strong></p>
+            <p><span>CAGR</span><strong>{pct(validationCase.result.cagr)}</strong></p>
+            <p><span>自有資金 IRR</span><strong>{Number.isFinite(validationCase.result.leveragedIrr) ? pct(validationCase.result.leveragedIrr) : '無法計算'}</strong></p>
+          </div>
+          <button type="button" onClick={refreshValidationCase}><RefreshCw size={14}/>以目前資料更新案例 A</button>
+          <small>案例 A 已獨立保存；後續修改基本資料不會改動本案例，除非按下更新。</small>
+        </div>
+      </details>
       <header><div><p className="eyebrow">MY PROPERTY</p><h1>{activeProperty.name}資產儀表板</h1><p>{activeProperty.address || '尚未設定地址'}・用同一組已儲存資料理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>
 
       <section className="metrics">

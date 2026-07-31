@@ -154,7 +154,9 @@ export function mortgageBalance(
 function npv(rate: number, cashFlows: number[]): number {
   return cashFlows.reduce(
     (value, cashFlow, period) =>
-      value + cashFlow / Math.pow(1 + rate, period),
+      cashFlow === 0
+        ? value
+        : value + cashFlow / Math.pow(1 + rate, period),
     0,
   )
 }
@@ -163,8 +165,13 @@ export function annualizedMonthlyIrr(cashFlows: number[]): number {
   let low = -0.9999
   let high = 1
   let lowNpv = npv(low, cashFlows)
+  while (!Number.isFinite(lowNpv) && low < -0.0001) {
+    low /= 2
+    lowNpv = npv(low, cashFlows)
+  }
   let highNpv = npv(high, cashFlows)
 
+  if (!Number.isFinite(lowNpv) || !Number.isFinite(highNpv)) return Number.NaN
   if (lowNpv === 0) return -100
 
   while (lowNpv * highNpv > 0 && high < 1_024) {

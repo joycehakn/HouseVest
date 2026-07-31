@@ -62,9 +62,7 @@ const initialScenario: ScenarioInputs = {
 
 const money = (n: number) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Math.round(n))
 const pct = (n: number) => `${n.toFixed(1)}%`
-const irr = (n: number) => Number.isFinite(n) && Math.abs(n) <= 1_000
-  ? pct(n)
-  : '無法合理計算'
+const irr = (n: number) => Number.isFinite(n) ? pct(n) : '無法計算'
 const nt = (n: number) => money(n)
 const wan = (n: number) => `${new Intl.NumberFormat('zh-TW', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n / 10_000)} 萬`
 const dayAfter = (date: string) => {

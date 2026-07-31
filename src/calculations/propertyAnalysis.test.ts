@@ -147,6 +147,31 @@ describe("annualizedMonthlyIrr", () => {
       ]),
     ).toBeCloseTo(12, 6)
   })
+
+  it("stays numerically stable across long periods containing zero cash flows", () => {
+    const monthlyRate = Math.pow(1.12, 1 / 12) - 1
+    expect(
+      annualizedMonthlyIrr([
+        -1_000,
+        ...Array.from({ length: 83 }, () => 0),
+        1_000 * Math.pow(1 + monthlyRate, 84),
+      ]),
+    ).toBeCloseTo(12, 6)
+  })
+
+  it("does not mistake the search boundary for IRR on a long mortgage cash flow", () => {
+    const cashFlows = [
+      -2_367_345,
+      ...Array.from({ length: 53 }, () => -45_000),
+      0,
+      ...Array.from({ length: 23 }, () => -46_000),
+      5_700_000,
+    ]
+    const result = annualizedMonthlyIrr(cashFlows)
+
+    expect(Number.isFinite(result)).toBe(true)
+    expect(Math.abs(result)).toBeLessThan(100)
+  })
 })
 
 describe("calculatePropertyAnalysis", () => {

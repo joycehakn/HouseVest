@@ -449,9 +449,9 @@ function App() {
         : current.saleDate,
     }))
   }
-  const saveProfile = (profile: PropertyProfile) => {
+  const updateAndPersistProfile = (profile: PropertyProfile) => {
+    setEditingProperty(profile)
     persistProfile(profile)
-    setEditingProperty(null)
   }
 
   return <div className="app">
@@ -525,7 +525,7 @@ function App() {
         <div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="year"/><YAxis tickFormatter={v => `${v}萬`}/><Tooltip formatter={(v) => [`${money(Number(v))} 萬`, '淨資產']}/><Area type="monotone" dataKey="equity" stroke="currentColor" fill="currentColor" fillOpacity={0.12}/></AreaChart></ResponsiveContainer></div>
       </section>
       {detail && <CalculationDrawer detail={detail} onClose={() => setDetail(null)} />}
-      {editingProperty && <PropertyEditor profile={editingProperty} saleDate={scenario.saleDate} onChange={setEditingProperty} onPersist={persistProfile} onSave={saveProfile} onClose={() => setEditingProperty(null)} />}
+      {editingProperty && <PropertyEditor profile={editingProperty} saleDate={scenario.saleDate} onChange={updateAndPersistProfile} onClose={() => setEditingProperty(null)} />}
     </main>
   </div>
 }
@@ -560,7 +560,7 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
   </div>
 }
 
-function PropertyEditor({ profile, saleDate, onChange, onPersist, onSave, onClose }: { profile: PropertyProfile; saleDate: string; onChange: (profile: PropertyProfile) => void; onPersist: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
+function PropertyEditor({ profile, saleDate, onChange, onClose }: { profile: PropertyProfile; saleDate: string; onChange: (profile: PropertyProfile) => void; onClose: () => void }) {
   const [recognizing, setRecognizing] = useState(false)
   const [landLookupStatus, setLandLookupStatus] = useState<Record<string, { state: 'loading' | 'success' | 'error'; message: string }>>({})
   const [cpiLookupStatus, setCpiLookupStatus] = useState<Record<string, { state: 'loading' | 'success' | 'error'; message: string }>>({})
@@ -711,7 +711,6 @@ function PropertyEditor({ profile, saleDate, onChange, onPersist, onSave, onClos
       customAcquisitionCosts: profile.customAcquisitionCosts.filter(cost => cost.id !== id),
     }
     onChange(next)
-    onPersist(next)
   }
   const acquisitionCostTotal = totalAcquisitionCosts(
     profile.acquisitionCosts,
@@ -743,7 +742,7 @@ function PropertyEditor({ profile, saleDate, onChange, onPersist, onSave, onClos
       <div className="drawerHeader"><div><p className="eyebrow">PROPERTY DATABASE</p><h2>房屋基本資料</h2></div><button aria-label="關閉房屋基本資料" onClick={onClose}><X size={20}/></button></div>
       <p className="drawerSummary">儲存後，Dashboard、出售分析、CAGR 與 IRR 都會共用這份資料。</p>
       <button className="openRecognition" type="button" onClick={() => setRecognizing(true)}><Camera size={17}/>免費從多張文件照片帶入</button>
-      <form onSubmit={event => { event.preventDefault(); onSave(profile) }}>
+      <form onSubmit={event => event.preventDefault()}>
         <EditorSection title="識別資料">
           <TextInput label="房屋名稱" value={profile.name} onChange={value => updateText('name', value)} required />
           <TextInput label="地址或備註" value={profile.address} onChange={value => updateText('address', value)} />
@@ -909,8 +908,10 @@ function PropertyEditor({ profile, saleDate, onChange, onPersist, onSave, onClos
           </div>}
           <div className="taxNotice warning">土地增值稅請優先填入地方稅機關核定或官方試算結果；房地成交價無法可靠推回公告土地現值。</div>
         </EditorSection>
-        <div className="storageNote">資料只儲存在這台裝置的此瀏覽器中，不會上傳到伺服器。</div>
-        <button className="saveProperty" type="submit">儲存並套用</button>
+        <div className="storageNote autoSaveNote">
+          <strong>已開啟自動儲存與套用</strong>
+          <span>每次修改欄位都會立即套用；資料只儲存在這台裝置的此瀏覽器中。</span>
+        </div>
       </form>
       {recognizing && <DocumentRecognition profile={profile} onApply={next => { onChange(next); setRecognizing(false) }} onClose={() => setRecognizing(false)} />}
     </aside>

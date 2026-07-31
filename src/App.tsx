@@ -194,13 +194,13 @@ function App() {
         result: item.result,
       }))
     : dateComparisons.map(item => ({
-        key: `date-${item.months}`,
+        key: `date-${item.key}`,
         label: item.label,
         sublabel: item.saleDate,
         salePrice: inputs.salePrice,
         saleDate: item.saleDate,
-        baseline: item.months === 0,
-        adjustment: item.months === 0 ? '基準出售日' : `基準日後 ${item.months} 個月`,
+        baseline: item.key === 'base',
+        adjustment: item.adjustment,
         result: item.result,
       })), [comparisonMode, dateComparisons, inputs.saleDate, inputs.salePrice, scenarioComparisons])
   const scenarioChartData = useMemo(() => comparisonItems.map(item => ({

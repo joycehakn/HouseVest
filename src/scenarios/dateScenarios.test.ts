@@ -30,10 +30,12 @@ describe('date scenario comparisons', () => {
     const scenarios = createDateScenarioComparisons(inputs)
 
     expect(scenarios.map(item => item.saleDate)).toEqual([
-      '2026-08-31', '2027-02-28', '2027-08-31', '2028-08-31', '2029-08-31',
+      '2026-08-31', '2027-08-01', '2027-08-31', '2028-08-31', '2031-08-02',
     ])
     expect(scenarios[0].result).toEqual(calculatePropertyAnalysis(inputs))
     expect(scenarios[4].result.holdingYears).toBeGreaterThan(scenarios[0].result.holdingYears)
+    expect(scenarios[0].result.taxAnalysis.appliedRate).toBe(20)
+    expect(scenarios[4].result.taxAnalysis.appliedRate).toBe(15)
   })
 
   it('clamps month-end dates instead of overflowing into the next month', () => {

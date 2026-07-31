@@ -13,6 +13,7 @@ export type PropertyInputs = {
   salePrice: number
   sellingAgencyFeeRate: number
   otherSellingCosts: number
+  documentedOtherSellingCosts: number
   taxProfile: TaiwanPropertyTaxProfile
   purchaseDate: string
   saleDate: string
@@ -209,7 +210,8 @@ export function calculatePropertyAnalysis(
     salePrice: inputs.salePrice,
     purchasePrice: inputs.purchasePrice,
     acquisitionCosts: inputs.acquisitionCosts,
-    documentedSellingExpenses: saleCosts,
+    documentedSellingExpenses:
+      sellingAgencyFee + inputs.documentedOtherSellingCosts,
     profile: inputs.taxProfile,
   })
   const taxableGain = taxAnalysis.taxableIncome

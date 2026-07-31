@@ -41,6 +41,9 @@ export type TaiwanPropertyTaxResult = {
   holdingDays: number
   holdingYears: number
   recognizedSellingExpenses: number
+  documentedSellingExpenses: number
+  statutorySellingExpenses: number
+  recognizedSellingExpenseMethod: SellingExpenseMethod
   transactionIncome: number
   taxableIncome: number
   appliedRate: number | null
@@ -117,10 +120,14 @@ export function calculateTaiwanPropertyTax(
   const days = holdingDays(input.purchaseDate, input.saleDate)
   const years = days / 365.2425
   const statutoryExpenses = Math.min(input.salePrice * 0.03, 300_000)
-  const recognizedSellingExpenses =
-    input.profile.sellingExpenseMethod === "documented"
-      ? input.documentedSellingExpenses
-      : statutoryExpenses
+  const recognizedSellingExpenseMethod: SellingExpenseMethod =
+    input.documentedSellingExpenses >= statutoryExpenses
+      ? "documented"
+      : "statutory"
+  const recognizedSellingExpenses = Math.max(
+    input.documentedSellingExpenses,
+    statutoryExpenses,
+  )
   const transactionIncome = Math.max(
     0,
     input.salePrice -
@@ -154,6 +161,9 @@ export function calculateTaiwanPropertyTax(
       holdingDays: days,
       holdingYears: years,
       recognizedSellingExpenses,
+      documentedSellingExpenses: input.documentedSellingExpenses,
+      statutorySellingExpenses: statutoryExpenses,
+      recognizedSellingExpenseMethod,
       transactionIncome,
       taxableIncome,
       appliedRate: null,
@@ -265,6 +275,9 @@ export function calculateTaiwanPropertyTax(
     holdingDays: days,
     holdingYears: years,
     recognizedSellingExpenses,
+    documentedSellingExpenses: input.documentedSellingExpenses,
+    statutorySellingExpenses: statutoryExpenses,
+    recognizedSellingExpenseMethod,
     transactionIncome,
     taxableIncome,
     appliedRate,

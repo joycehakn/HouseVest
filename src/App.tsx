@@ -21,7 +21,7 @@ import { DocumentRecognition } from './ai/DocumentRecognition'
 type ScenarioInputs = {
   salePrice: number
   sellingAgencyFeeRate: number
-  customSellingCosts: { id: string; name: string; amount: number }[]
+  customSellingCosts: { id: string; name: string; amount: number; documented: boolean }[]
   saleDate: string
 }
 
@@ -91,6 +91,10 @@ function App() {
       (total, cost) => total + cost.amount,
       0,
     ),
+    documentedOtherSellingCosts: scenario.customSellingCosts.reduce(
+      (total, cost) => total + (cost.documented ? cost.amount : 0),
+      0,
+    ),
     taxProfile: activeProperty.taxProfile,
     saleDate: scenario.saleDate,
   }), [activeProperty, scenario])
@@ -109,6 +113,18 @@ function App() {
       value: cost.amount,
       })),
   ), [activeProperty])
+  const enteredSellingCosts = useMemo(() => [
+    ...(result.sellingAgencyFee > 0
+      ? [{ label: `出售仲介費（${inputs.sellingAgencyFeeRate}%）`, value: result.sellingAgencyFee, documented: true }]
+      : []),
+    ...scenario.customSellingCosts
+      .filter(cost => cost.name.trim() !== '' || cost.amount > 0)
+      .map(cost => ({
+        label: cost.name.trim() || '自訂出售成本',
+        value: cost.amount,
+        documented: cost.documented,
+      })),
+  ], [inputs.sellingAgencyFeeRate, result.sellingAgencyFee, scenario.customSellingCosts])
   const scenarioComparisons = useMemo(() => [
     { offset: -1_000_000, label: '−100 萬' },
     { offset: -500_000, label: '−50 萬' },
@@ -191,7 +207,21 @@ function App() {
             value: nt(cost.value),
           })),
         },
-        { label: `稅法認列出售費用（${inputs.taxProfile.sellingExpenseMethod === 'documented' ? '憑證' : '法定推計'}）`, value: nt(result.taxAnalysis.recognizedSellingExpenses), operator: '−' },
+        {
+          label: `稅法認列出售費用（自動採${result.taxAnalysis.recognizedSellingExpenseMethod === 'documented' ? '實際憑證' : '法定推計'}）`,
+          value: nt(result.taxAnalysis.recognizedSellingExpenses),
+          operator: '−',
+          children: [
+            ...enteredSellingCosts.map(cost => ({
+              label: `目前項目：${cost.label}${cost.documented ? '（有憑證）' : '（無憑證，不列入實際憑證合計）'}`,
+              value: nt(cost.value),
+            })),
+            { label: '目前實際憑證合計', value: nt(result.taxAnalysis.documentedSellingExpenses) },
+            { label: '法定推計額（成交價3%，最高30萬）', value: nt(result.taxAnalysis.statutorySellingExpenses) },
+            { label: '建議認列方式', value: result.taxAnalysis.recognizedSellingExpenseMethod === 'documented' ? '採實際憑證' : '採法定推計' },
+            { label: '最終認列金額', value: nt(result.taxAnalysis.recognizedSellingExpenses) },
+          ],
+        },
         { label: '交易所得', value: nt(result.taxAnalysis.transactionIncome), operator: '=' },
         { label: '前3年房地交易損失', value: nt(inputs.taxProfile.priorThreeYearTransactionLoss), operator: '−' },
         { label: '土地漲價總數額', value: inputs.taxProfile.landPriceIncrementTotal === null ? '尚未填寫' : nt(inputs.taxProfile.landPriceIncrementTotal), operator: '−' },
@@ -275,7 +305,7 @@ function App() {
       ],
       note: '此權重尚未校準或驗證，只保留作為介面原型；進行投資判斷時請直接查看可驗證的財務數字。',
     },
-  }), [enteredAcquisitionCosts, inputs, result])
+  }), [enteredAcquisitionCosts, enteredSellingCosts, inputs, result])
 
   useEffect(() => {
     setDetail(current => {
@@ -328,7 +358,7 @@ function App() {
     ...current,
     customSellingCosts: [
       ...current.customSellingCosts,
-      { id: crypto.randomUUID(), name: '', amount: 0 },
+      { id: crypto.randomUUID(), name: '', amount: 0, documented: true },
     ],
   }))
   const updateSellingCost = (
@@ -462,6 +492,7 @@ function App() {
             {scenario.customSellingCosts.map(cost => <div className="sellingCostRow" key={cost.id}>
               <label><span>費用名稱</span><input aria-label="出售成本名稱" placeholder="例如：代書費、清潔費" value={cost.name} onChange={event => updateSellingCost(cost.id, { name: event.target.value })} /></label>
               <label><span>金額</span><div><input aria-label={`${cost.name || '出售成本'}金額`} type="number" min="0" placeholder="0" value={cost.amount || ''} onChange={event => updateSellingCost(cost.id, { amount: event.target.value === '' ? 0 : Number(event.target.value) })} /></div></label>
+              <label className="sellingCostEvidence"><input type="checkbox" checked={cost.documented} onChange={event => updateSellingCost(cost.id, { documented: event.target.checked })}/><span>有可申報憑證</span></label>
               <button type="button" aria-label={`刪除${cost.name || '出售成本'}`} onClick={() => removeSellingCost(cost.id)}><Trash2 size={13}/></button>
             </div>)}
             <div className="sellingCostTotal"><span>出售成本合計</span><strong>{nt(result.saleCosts)}</strong></div>
@@ -617,10 +648,7 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
             <option value="resident">中華民國境內居住者</option>
             <option value="nonresident">非境內居住者</option>
           </SelectInput>
-          <SelectInput label="出售費用認列方式" help="有仲介費、廣告費等合法憑證時選實際憑證；無法提示或證明金額不足時，可選法定推計：成交價3%，最高30萬元。" value={profile.taxProfile.sellingExpenseMethod} onChange={value => updateTaxProfile({ sellingExpenseMethod: value as PropertyProfile['taxProfile']['sellingExpenseMethod'] })}>
-            <option value="documented">依實際憑證</option>
-            <option value="statutory">無完整憑證，依法定推計</option>
-          </SelectInput>
+          <div className="taxNotice">出售費用會自動比較實際憑證合計與法定推計額（成交價3%，最高30萬元），採用較高者；不用手動選擇。</div>
           <NumberInput label="前3年可扣抵房地交易損失" help="填入其他新制房地交易在本次交易日前3年內、經國稅局核定且尚未扣完的損失。沒有核定通知書時填0。" value={profile.taxProfile.priorThreeYearTransactionLoss} onChange={value => updateTaxProfile({ priorThreeYearTransactionLoss: value })} />
           <NullableNumberInput label="土地漲價總數額" help="取自土地增值稅繳款書或免稅證明書，用來自房地交易所得中減除。這不是土地增值稅稅額；未知時保持空白。" value={profile.taxProfile.landPriceIncrementTotal} onChange={value => updateTaxProfile({ landPriceIncrementTotal: value })} />
           <NullableNumberInput label="土地增值稅核定／官方試算額" help="出售土地時另行課徵的地方稅。請填地方稅機關核定或官方試算結果，無法只用房地成交價推算；未知時保持空白。" value={profile.taxProfile.landValueIncrementTax} onChange={value => updateTaxProfile({ landValueIncrementTax: value })} />

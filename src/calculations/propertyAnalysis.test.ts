@@ -22,6 +22,7 @@ const inputs: PropertyInputs = {
   salePrice: 17_500_000,
   sellingAgencyFeeRate: 4,
   otherSellingCosts: 0,
+  documentedOtherSellingCosts: 0,
   taxProfile: {
     residency: "resident",
     sellingExpenseMethod: "documented",

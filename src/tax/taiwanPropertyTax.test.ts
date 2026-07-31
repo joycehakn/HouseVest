@@ -62,14 +62,22 @@ describe("Taiwan property tax", () => {
     expect(result.totalTax).toBe(800_000)
   })
 
-  it("uses the statutory 3% expense amount capped at 300,000", () => {
+  it("automatically uses the statutory 3% expense when it is higher", () => {
     const result = calculateTaiwanPropertyTax({
       ...input,
       salePrice: 20_000_000,
-      profile: { ...input.profile, sellingExpenseMethod: "statutory" },
+      documentedSellingExpenses: 100_000,
     })
 
     expect(result.recognizedSellingExpenses).toBe(300_000)
+    expect(result.recognizedSellingExpenseMethod).toBe("statutory")
+  })
+
+  it("automatically uses documented expenses when they are higher", () => {
+    const result = calculateTaiwanPropertyTax(input)
+
+    expect(result.recognizedSellingExpenses).toBe(700_000)
+    expect(result.recognizedSellingExpenseMethod).toBe("documented")
   })
 
   it("applies the self-use exemption and 10% rate only when every condition is met", () => {

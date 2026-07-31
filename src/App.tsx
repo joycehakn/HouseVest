@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Building2, Calculator, Camera, HousePlus, Landmark, LineChart, Pencil, PiggyBank, Plus, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
+import { Building2, Calculator, Camera, CircleHelp, HousePlus, Landmark, LineChart, Pencil, PiggyBank, Plus, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
 import {
   calculatePropertyAnalysis,
   calculateHoldingPeriod,
@@ -610,25 +610,25 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
         </EditorSection>
         <EditorSection title="賣房稅務資料">
           <div className="taxNotice">取得日會用來判定新舊制；持有期間與適用稅率會依情境中的出售日自動判定。</div>
-          <SelectInput label="納稅人身分" value={profile.taxProfile.residency} onChange={value => updateTaxProfile({ residency: value as PropertyProfile['taxProfile']['residency'] })}>
+          <SelectInput label="納稅人身分" help="依出售年度是否屬中華民國境內居住者判定。非境內居住者適用的持有期間級距不同；不確定時應依實際居留情況確認。" value={profile.taxProfile.residency} onChange={value => updateTaxProfile({ residency: value as PropertyProfile['taxProfile']['residency'] })}>
             <option value="resident">中華民國境內居住者</option>
             <option value="nonresident">非境內居住者</option>
           </SelectInput>
-          <SelectInput label="出售費用認列方式" value={profile.taxProfile.sellingExpenseMethod} onChange={value => updateTaxProfile({ sellingExpenseMethod: value as PropertyProfile['taxProfile']['sellingExpenseMethod'] })}>
+          <SelectInput label="出售費用認列方式" help="有仲介費、廣告費等合法憑證時選實際憑證；無法提示或證明金額不足時，可選法定推計：成交價3%，最高30萬元。" value={profile.taxProfile.sellingExpenseMethod} onChange={value => updateTaxProfile({ sellingExpenseMethod: value as PropertyProfile['taxProfile']['sellingExpenseMethod'] })}>
             <option value="documented">依實際憑證</option>
             <option value="statutory">無完整憑證，依法定推計</option>
           </SelectInput>
-          <NumberInput label="前3年可扣抵房地交易損失" value={profile.taxProfile.priorThreeYearTransactionLoss} onChange={value => updateTaxProfile({ priorThreeYearTransactionLoss: value })} />
-          <NullableNumberInput label="土地漲價總數額" value={profile.taxProfile.landPriceIncrementTotal} onChange={value => updateTaxProfile({ landPriceIncrementTotal: value })} />
-          <NullableNumberInput label="土地增值稅核定／官方試算額" value={profile.taxProfile.landValueIncrementTax} onChange={value => updateTaxProfile({ landValueIncrementTax: value })} />
-          <NumberInput label="可列費用的土地增值稅部分" value={profile.taxProfile.deductibleLandValueIncrementTax} onChange={value => updateTaxProfile({ deductibleLandValueIncrementTax: value })} />
-          <CheckInput label="準備申請自住房地優惠" checked={profile.taxProfile.claimsSelfUseBenefit} onChange={checked => updateTaxProfile({ claimsSelfUseBenefit: checked })} />
+          <NumberInput label="前3年可扣抵房地交易損失" help="填入其他新制房地交易在本次交易日前3年內、經國稅局核定且尚未扣完的損失。沒有核定通知書時填0。" value={profile.taxProfile.priorThreeYearTransactionLoss} onChange={value => updateTaxProfile({ priorThreeYearTransactionLoss: value })} />
+          <NullableNumberInput label="土地漲價總數額" help="取自土地增值稅繳款書或免稅證明書，用來自房地交易所得中減除。這不是土地增值稅稅額；未知時保持空白。" value={profile.taxProfile.landPriceIncrementTotal} onChange={value => updateTaxProfile({ landPriceIncrementTotal: value })} />
+          <NullableNumberInput label="土地增值稅核定／官方試算額" help="出售土地時另行課徵的地方稅。請填地方稅機關核定或官方試算結果，無法只用房地成交價推算；未知時保持空白。" value={profile.taxProfile.landValueIncrementTax} onChange={value => updateTaxProfile({ landValueIncrementTax: value })} />
+          <NumberInput label="可列費用的土地增值稅部分" help="土地增值稅通常不得全額再列費用；只有符合規定的未減除土地漲價總數額所對應部分才可列入。沒有稅務文件確認時填0。" value={profile.taxProfile.deductibleLandValueIncrementTax} onChange={value => updateTaxProfile({ deductibleLandValueIncrementTax: value })} />
+          <CheckInput label="準備申請自住房地優惠" help="只有同時符合設籍居住、6年內未出租營業，以及家庭前6年未使用過優惠等條件，才可適用400萬元免稅額及超過部分10%。" checked={profile.taxProfile.claimsSelfUseBenefit} onChange={checked => updateTaxProfile({ claimsSelfUseBenefit: checked })} />
           {profile.taxProfile.claimsSelfUseBenefit && <div className="taxQualifications">
-            <CheckInput label="本人、配偶或未成年子女設籍、持有並居住連續滿6年" checked={profile.taxProfile.householdRegisteredAndLivedSixYears} onChange={checked => updateTaxProfile({ householdRegisteredAndLivedSixYears: checked })} />
-            <CheckInput label="交易前6年內未出租、營業或執行業務" checked={profile.taxProfile.noRentalOrBusinessUseSixYears} onChange={checked => updateTaxProfile({ noRentalOrBusinessUseSixYears: checked })} />
-            <CheckInput label="本人、配偶及未成年子女前6年未用過此優惠" checked={profile.taxProfile.noSelfUseBenefitInPriorSixYears} onChange={checked => updateTaxProfile({ noSelfUseBenefitInPriorSixYears: checked })} />
+            <CheckInput label="本人、配偶或未成年子女設籍、持有並居住連續滿6年" help="設籍、持有與實際居住三項都必須連續滿6年，僅持有房屋滿6年並不足夠。" checked={profile.taxProfile.householdRegisteredAndLivedSixYears} onChange={checked => updateTaxProfile({ householdRegisteredAndLivedSixYears: checked })} />
+            <CheckInput label="交易前6年內未出租、營業或執行業務" help="出售日前6年內，該房地不得出租、供營業或執行業務使用；若曾有使用情形，請勿勾選。" checked={profile.taxProfile.noRentalOrBusinessUseSixYears} onChange={checked => updateTaxProfile({ noRentalOrBusinessUseSixYears: checked })} />
+            <CheckInput label="本人、配偶及未成年子女前6年未用過此優惠" help="以家庭為單位檢查；本人、配偶與未成年子女在本次交易前6年內都不能曾適用自住房地優惠。" checked={profile.taxProfile.noSelfUseBenefitInPriorSixYears} onChange={checked => updateTaxProfile({ noSelfUseBenefitInPriorSixYears: checked })} />
           </div>}
-          <CheckInput label="確認符合財政部公告的非自願性交易資格" checked={profile.taxProfile.involuntaryTransferEligible} onChange={checked => updateTaxProfile({ involuntaryTransferEligible: checked })} />
+          <CheckInput label="確認符合財政部公告的非自願性交易資格" help="例如符合公告的調職、非自願離職、重大疾病等特殊原因，且須準備證明文件由稽徵機關認定；不是單純急售即可勾選。" checked={profile.taxProfile.involuntaryTransferEligible} onChange={checked => updateTaxProfile({ involuntaryTransferEligible: checked })} />
           <div className="taxNotice warning">土地增值稅請優先填入地方稅機關核定或官方試算結果；房地成交價無法可靠推回公告土地現值。</div>
         </EditorSection>
         <div className="storageNote">資料只儲存在這台裝置的此瀏覽器中，不會上傳到伺服器。</div>
@@ -647,20 +647,28 @@ function TextInput({ label, value, type = 'text', required = false, onChange }: 
   return <label className="editorField"><span>{label}</span><input type={type} value={value} required={required} onChange={event => onChange(event.target.value)} /></label>
 }
 
-function NumberInput({ label, value, suffix = '', step = 1, onChange }: { label: string; value: number; suffix?: string; step?: number; onChange: (value: number) => void }) {
-  return <label className="editorField"><span>{label}</span><div><input type="number" min="0" step={step} placeholder="0" value={value || ''} onChange={event => onChange(event.target.value === '' ? 0 : Number(event.target.value))} />{suffix && <em>{suffix}</em>}</div></label>
+function NumberInput({ label, value, help, suffix = '', step = 1, onChange }: { label: string; value: number; help?: string; suffix?: string; step?: number; onChange: (value: number) => void }) {
+  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><div><input type="number" min="0" step={step} placeholder="0" value={value || ''} onChange={event => onChange(event.target.value === '' ? 0 : Number(event.target.value))} />{suffix && <em>{suffix}</em>}</div></label>
 }
 
-function NullableNumberInput({ label, value, onChange }: { label: string; value: number | null; onChange: (value: number | null) => void }) {
-  return <label className="editorField"><span>{label}</span><div><input type="number" min="0" placeholder="尚未填寫" value={value ?? ''} onChange={event => onChange(event.target.value === '' ? null : Number(event.target.value))} /></div></label>
+function NullableNumberInput({ label, value, help, onChange }: { label: string; value: number | null; help?: string; onChange: (value: number | null) => void }) {
+  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><div><input type="number" min="0" placeholder="尚未填寫" value={value ?? ''} onChange={event => onChange(event.target.value === '' ? null : Number(event.target.value))} /></div></label>
 }
 
-function SelectInput({ label, value, children, onChange }: { label: string; value: string; children: ReactNode; onChange: (value: string) => void }) {
-  return <label className="editorField"><span>{label}</span><select value={value} onChange={event => onChange(event.target.value)}>{children}</select></label>
+function SelectInput({ label, value, help, children, onChange }: { label: string; value: string; help?: string; children: ReactNode; onChange: (value: string) => void }) {
+  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><select value={value} onChange={event => onChange(event.target.value)}>{children}</select></label>
 }
 
-function CheckInput({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return <label className="checkField"><input type="checkbox" checked={checked} onChange={event => onChange(event.target.checked)} /><span>{label}</span></label>
+function CheckInput({ label, checked, help, onChange }: { label: string; checked: boolean; help?: string; onChange: (checked: boolean) => void }) {
+  return <label className="checkField"><input type="checkbox" checked={checked} onChange={event => onChange(event.target.checked)} /><span>{label}{help && <HelpTip text={help} />}</span></label>
+}
+
+function HelpTip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  return <span className="helpTip">
+    <button type="button" aria-label="查看欄位說明" aria-expanded={open} onClick={event => { event.preventDefault(); event.stopPropagation(); setOpen(current => !current) }}><CircleHelp size={14}/></button>
+    {open && <span role="tooltip">{text}</span>}
+  </span>
 }
 
 function Field({ label, value, suffix, step = 1, onChange }: { label: string; value: number; suffix: string; step?: number; onChange: (v: number) => void }) {

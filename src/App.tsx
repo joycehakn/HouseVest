@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Building2, Calculator, Camera, HousePlus, Landmark, LineChart, Pencil, PiggyBank, Plus, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
@@ -270,6 +270,13 @@ function App() {
       note: '此權重尚未校準或驗證，只保留作為介面原型；進行投資判斷時請直接查看可驗證的財務數字。',
     },
   }), [enteredAcquisitionCosts, inputs, result])
+
+  useEffect(() => {
+    setDetail(current => {
+      if (!current) return current
+      return Object.values(details).find(item => item.title === current.title) ?? current
+    })
+  }, [details])
 
   const chart = useMemo(() => [
     {

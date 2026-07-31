@@ -11,7 +11,7 @@ export type ValidationScenario = {
 }
 
 export type ValidationStatus = 'confirmed' | 'estimated' | 'pending'
-export type ValidationField = 'purchasePrice' | 'acquisitionCosts' | 'currentLoanBalance' | 'historicalMortgagePayments' | 'salePrice' | 'tax' | 'profit' | 'cagr' | 'leveragedIrr'
+export type ValidationField = 'purchasePrice' | 'acquisitionCosts' | 'currentLoanBalance' | 'historicalMortgagePayments' | 'salePrice' | 'sellingAgencyFeeRate' | 'otherSellingCosts' | 'tax' | 'profit' | 'cagr' | 'leveragedIrr'
 export type ValidationFieldStatuses = Record<ValidationField, ValidationStatus>
 
 export const defaultValidationFieldStatuses: ValidationFieldStatuses = {
@@ -20,6 +20,8 @@ export const defaultValidationFieldStatuses: ValidationFieldStatuses = {
   currentLoanBalance: 'confirmed',
   historicalMortgagePayments: 'estimated',
   salePrice: 'estimated',
+  sellingAgencyFeeRate: 'confirmed',
+  otherSellingCosts: 'pending',
   tax: 'pending',
   profit: 'pending',
   cagr: 'pending',

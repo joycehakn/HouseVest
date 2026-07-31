@@ -536,6 +536,8 @@ function App() {
             <p><span>目前貸款餘額</span><strong>{nt(validationCase.property.currentLoanBalance)}</strong>{validationStatusSelect('currentLoanBalance', '目前貸款餘額')}</p>
             <p><span>截至目前累積付款（公式推估）</span><strong>{nt(validationCase.result.historicalMortgagePayments ?? result.historicalMortgagePayments)}</strong>{validationStatusSelect('historicalMortgagePayments', '截至目前累積付款')}</p>
             <p><span>案例成交價</span><strong>{nt(validationCase.scenario.salePrice)}</strong>{validationStatusSelect('salePrice', '案例成交價')}</p>
+            <p><span>出售仲介費率</span><strong>{pct(validationCase.scenario.sellingAgencyFeeRate)}</strong>{validationStatusSelect('sellingAgencyFeeRate', '出售仲介費率')}</p>
+            <p><span>其他出售成本</span><strong>{nt(validationCase.scenario.customSellingCosts.reduce((total, cost) => total + cost.amount, 0))}</strong>{validationStatusSelect('otherSellingCosts', '其他出售成本')}</p>
             <p><span>賣房稅費</span><strong>{nt(validationCase.result.tax)}</strong>{validationStatusSelect('tax', '賣房稅費')}</p>
             <p><span>稅後淨利</span><strong>{nt(validationCase.result.profit)}</strong>{validationStatusSelect('profit', '稅後淨利')}</p>
             <p><span>CAGR</span><strong>{pct(validationCase.result.cagr)}</strong>{validationStatusSelect('cagr', 'CAGR')}</p>

@@ -11,11 +11,12 @@ export type ValidationScenario = {
 }
 
 export type ValidationStatus = 'confirmed' | 'estimated' | 'pending'
-export type ValidationField = 'purchasePrice' | 'salePrice' | 'tax' | 'profit' | 'cagr' | 'leveragedIrr'
+export type ValidationField = 'purchasePrice' | 'acquisitionCosts' | 'salePrice' | 'tax' | 'profit' | 'cagr' | 'leveragedIrr'
 export type ValidationFieldStatuses = Record<ValidationField, ValidationStatus>
 
 export const defaultValidationFieldStatuses: ValidationFieldStatuses = {
   purchasePrice: 'confirmed',
+  acquisitionCosts: 'confirmed',
   salePrice: 'estimated',
   tax: 'pending',
   profit: 'pending',

@@ -1,6 +1,18 @@
 export type TaxResidency = "resident" | "nonresident"
 export type SellingExpenseMethod = "documented" | "statutory"
 
+export type LandPriceIncrementParcel = {
+  id: string
+  name: string
+  currentDeclaredValuePerSquareMeter: number | null
+  previousDeclaredValuePerSquareMeter: number | null
+  cpiAdjustmentPercent: number | null
+  areaSquareMeters: number | null
+  ownershipNumerator: number
+  ownershipDenominator: number
+  improvementCosts: number
+}
+
 export type TaiwanPropertyTaxProfile = {
   residency: TaxResidency
   sellingExpenseMethod: SellingExpenseMethod
@@ -23,6 +35,36 @@ export type TaiwanPropertyTaxProfile = {
   repurchasedLandDeclaredValue: number | null
   soldLandDeclaredValue: number | null
   sameLandOwner: boolean
+  landPriceIncrementParcels: LandPriceIncrementParcel[]
+}
+
+export function estimateLandPriceIncrementTotal(
+  parcels: LandPriceIncrementParcel[],
+): number {
+  return parcels.reduce((total, parcel) => {
+    if (
+      parcel.currentDeclaredValuePerSquareMeter === null ||
+      parcel.previousDeclaredValuePerSquareMeter === null ||
+      parcel.cpiAdjustmentPercent === null ||
+      parcel.areaSquareMeters === null ||
+      parcel.ownershipDenominator <= 0
+    ) return total
+    const ownershipShare =
+      Math.max(0, parcel.ownershipNumerator) / parcel.ownershipDenominator
+    const currentDeclaredTotal =
+      parcel.currentDeclaredValuePerSquareMeter *
+      parcel.areaSquareMeters *
+      ownershipShare
+    const adjustedPreviousTotal =
+      parcel.previousDeclaredValuePerSquareMeter *
+      (parcel.cpiAdjustmentPercent / 100) *
+      parcel.areaSquareMeters *
+      ownershipShare
+    return total + Math.max(
+      0,
+      currentDeclaredTotal - adjustedPreviousTotal - parcel.improvementCosts,
+    )
+  }, 0)
 }
 
 export type TaiwanPropertyTaxInput = {

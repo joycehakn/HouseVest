@@ -17,6 +17,10 @@ import {
   type PropertyProfile,
 } from './properties/propertyProfiles'
 import { DocumentRecognition } from './ai/DocumentRecognition'
+import {
+  estimateLandPriceIncrementTotal,
+  type LandPriceIncrementParcel,
+} from './tax/taiwanPropertyTax'
 
 type ScenarioInputs = {
   salePrice: number
@@ -550,6 +554,37 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
     onChange({ ...profile, acquisitionCosts: { ...profile.acquisitionCosts, [key]: value } })
   const updateTaxProfile = (changes: Partial<PropertyProfile['taxProfile']>) =>
     onChange({ ...profile, taxProfile: { ...profile.taxProfile, ...changes } })
+  const addLandParcel = () => updateTaxProfile({
+    landPriceIncrementParcels: [
+      ...profile.taxProfile.landPriceIncrementParcels,
+      {
+        id: crypto.randomUUID(),
+        name: `土地 ${profile.taxProfile.landPriceIncrementParcels.length + 1}`,
+        currentDeclaredValuePerSquareMeter: null,
+        previousDeclaredValuePerSquareMeter: null,
+        cpiAdjustmentPercent: null,
+        areaSquareMeters: null,
+        ownershipNumerator: 1,
+        ownershipDenominator: 1,
+        improvementCosts: 0,
+      },
+    ],
+  })
+  const updateLandParcel = (
+    id: string,
+    changes: Partial<LandPriceIncrementParcel>,
+  ) => updateTaxProfile({
+    landPriceIncrementParcels:
+      profile.taxProfile.landPriceIncrementParcels.map(parcel =>
+        parcel.id === id ? { ...parcel, ...changes } : parcel
+      ),
+  })
+  const removeLandParcel = (id: string) => updateTaxProfile({
+    landPriceIncrementParcels:
+      profile.taxProfile.landPriceIncrementParcels.filter(parcel =>
+        parcel.id !== id
+      ),
+  })
   const addCustomCost = () => onChange({
     ...profile,
     customAcquisitionCosts: [
@@ -582,6 +617,18 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
     profile.originalLoan,
     profile.paymentEstimateAnnualRate,
     profile.originalLoanTermYears,
+  )
+  const landEstimateComplete =
+    profile.taxProfile.landPriceIncrementParcels.length > 0 &&
+    profile.taxProfile.landPriceIncrementParcels.every(parcel =>
+      parcel.currentDeclaredValuePerSquareMeter !== null &&
+      parcel.previousDeclaredValuePerSquareMeter !== null &&
+      parcel.cpiAdjustmentPercent !== null &&
+      parcel.areaSquareMeters !== null &&
+      parcel.ownershipDenominator > 0
+    )
+  const estimatedLandPriceIncrementTotal = estimateLandPriceIncrementTotal(
+    profile.taxProfile.landPriceIncrementParcels,
   )
 
   return <div className="drawerBackdrop" role="presentation" onMouseDown={onClose}>
@@ -651,6 +698,41 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
           <div className="taxNotice">出售費用會自動比較實際憑證合計與法定推計額（成交價3%，最高30萬元），採用較高者；不用手動選擇。</div>
           <NumberInput label="前3年可扣抵房地交易損失" help="填入其他新制房地交易在本次交易日前3年內、經國稅局核定且尚未扣完的損失。沒有核定通知書時填0。" value={profile.taxProfile.priorThreeYearTransactionLoss} onChange={value => updateTaxProfile({ priorThreeYearTransactionLoss: value })} />
           <NullableNumberInput label="土地漲價總數額" help="取自土地增值稅繳款書或免稅證明書，用來自房地交易所得中減除。這不是土地增值稅稅額；未知時保持空白。" value={profile.taxProfile.landPriceIncrementTotal} onChange={value => updateTaxProfile({ landPriceIncrementTotal: value })} />
+          <details className="landEstimator">
+            <summary><span>用財政部試算欄位預估</span><small>可新增多筆地號</small></summary>
+            <div className="landEstimatorBody">
+              <div className="landEstimatorIntro">
+                <p>預估公式：申報移轉現值－物價調整後前次移轉現值－土地改良費用</p>
+                <a href="https://www.etax.nat.gov.tw/etwmain/etw158w/51?ccms_cs=1" target="_blank" rel="noreferrer">開啟財政部土地增值稅試算</a>
+              </div>
+              {profile.taxProfile.landPriceIncrementParcels.map(parcel => {
+                const parcelEstimate = estimateLandPriceIncrementTotal([parcel])
+                const complete = parcel.currentDeclaredValuePerSquareMeter !== null &&
+                  parcel.previousDeclaredValuePerSquareMeter !== null &&
+                  parcel.cpiAdjustmentPercent !== null &&
+                  parcel.areaSquareMeters !== null &&
+                  parcel.ownershipDenominator > 0
+                return <section className="landParcel" key={parcel.id}>
+                  <div className="landParcelHeader"><strong>{parcel.name || '未命名土地'}</strong><button type="button" aria-label={`刪除${parcel.name || '土地'}`} onClick={() => removeLandParcel(parcel.id)}><Trash2 size={13}/></button></div>
+                  <TextInput label="地號或名稱" value={parcel.name} onChange={value => updateLandParcel(parcel.id, { name: value })} />
+                  <NullableNumberInput label="本次公告／申報現值（每平方公尺）" help="填本次移轉採用的土地公告現值或經核定的申報移轉現值單價。" value={parcel.currentDeclaredValuePerSquareMeter} onChange={value => updateLandParcel(parcel.id, { currentDeclaredValuePerSquareMeter: value })} />
+                  <NullableNumberInput label="原規定地價或前次移轉現值（每平方公尺）" help="可從土地謄本、前次移轉資料或地方稅捐機關取得。" value={parcel.previousDeclaredValuePerSquareMeter} onChange={value => updateLandParcel(parcel.id, { previousDeclaredValuePerSquareMeter: value })} />
+                  <NullableNumberInput label="稅務專用物價指數" help="以百分比輸入，例如120代表120%；請使用財政部試算所連結的稅務專用消費者物價總指數。" value={parcel.cpiAdjustmentPercent} suffix="%" step={0.01} onChange={value => updateLandParcel(parcel.id, { cpiAdjustmentPercent: value })} />
+                  <NullableNumberInput label="土地宗地面積" help="填土地登記謄本標示的整筆宗地面積，再由下方持分換算你出售的部分。" value={parcel.areaSquareMeters} suffix="㎡" step={0.01} onChange={value => updateLandParcel(parcel.id, { areaSquareMeters: value })} />
+                  <div className="ownershipFields">
+                    <NumberInput label="持分分子" value={parcel.ownershipNumerator} onChange={value => updateLandParcel(parcel.id, { ownershipNumerator: value })} />
+                    <NumberInput label="持分分母" value={parcel.ownershipDenominator} onChange={value => updateLandParcel(parcel.id, { ownershipDenominator: value })} />
+                  </div>
+                  <NumberInput label="核准土地改良費用" help="僅填地方稅捐機關核准減除的工程受益費、重劃費用等土地改良費用。" value={parcel.improvementCosts} onChange={value => updateLandParcel(parcel.id, { improvementCosts: value })} />
+                  <div className="parcelEstimate"><span>本筆預估</span><strong>{complete ? nt(parcelEstimate) : '資料未齊'}</strong></div>
+                </section>
+              })}
+              <button className="addLandParcel" type="button" onClick={addLandParcel}><Plus size={14}/>新增一筆土地</button>
+              <div className="landEstimateTotal"><span>預估土地漲價總數額合計</span><strong>{landEstimateComplete ? nt(estimatedLandPriceIncrementTotal) : '資料未齊'}</strong></div>
+              <button className="applyLandEstimate" type="button" disabled={!landEstimateComplete} onClick={() => updateTaxProfile({ landPriceIncrementTotal: estimatedLandPriceIncrementTotal })}>套用預估合計</button>
+              <p className="estimateCaveat">此為規劃用預估；正式申報仍以土地增值稅繳款書或免稅證明書核定金額為準。</p>
+            </div>
+          </details>
           <NullableNumberInput label="土地增值稅核定／官方試算額" help="出售土地時另行課徵的地方稅。請填地方稅機關核定或官方試算結果，無法只用房地成交價推算；未知時保持空白。" value={profile.taxProfile.landValueIncrementTax} onChange={value => updateTaxProfile({ landValueIncrementTax: value })} />
           <NumberInput label="可列費用的土地增值稅部分" help="土地增值稅通常不得全額再列費用；只有符合規定的未減除土地漲價總數額所對應部分才可列入。沒有稅務文件確認時填0。" value={profile.taxProfile.deductibleLandValueIncrementTax} onChange={value => updateTaxProfile({ deductibleLandValueIncrementTax: value })} />
           <CheckInput label="準備申請自住房地優惠" help="只有同時符合設籍居住、6年內未出租營業，以及家庭前6年未使用過優惠等條件，才可適用400萬元免稅額及超過部分10%。" checked={profile.taxProfile.claimsSelfUseBenefit} onChange={checked => updateTaxProfile({ claimsSelfUseBenefit: checked })} />
@@ -696,8 +778,8 @@ function NumberInput({ label, value, help, suffix = '', step = 1, onChange }: { 
   return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><div><input type="number" min="0" step={step} placeholder="0" value={value || ''} onChange={event => onChange(event.target.value === '' ? 0 : Number(event.target.value))} />{suffix && <em>{suffix}</em>}</div></label>
 }
 
-function NullableNumberInput({ label, value, help, onChange }: { label: string; value: number | null; help?: string; onChange: (value: number | null) => void }) {
-  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><div><input type="number" min="0" placeholder="尚未填寫" value={value ?? ''} onChange={event => onChange(event.target.value === '' ? null : Number(event.target.value))} /></div></label>
+function NullableNumberInput({ label, value, help, suffix = '', step = 1, onChange }: { label: string; value: number | null; help?: string; suffix?: string; step?: number; onChange: (value: number | null) => void }) {
+  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><div><input type="number" min="0" step={step} placeholder="尚未填寫" value={value ?? ''} onChange={event => onChange(event.target.value === '' ? null : Number(event.target.value))} />{suffix && <em>{suffix}</em>}</div></label>
 }
 
 function SelectInput({ label, value, help, children, onChange }: { label: string; value: string; help?: string; children: ReactNode; onChange: (value: string) => void }) {

@@ -45,6 +45,7 @@ const inputs: PropertyInputs = {
     repurchasedLandDeclaredValue: null,
     soldLandDeclaredValue: null,
     sameLandOwner: false,
+    landPriceIncrementParcels: [],
   },
   purchaseDate: "2021-08-01",
   saleDate: "2026-08-01",

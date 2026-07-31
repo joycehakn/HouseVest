@@ -88,6 +88,7 @@ export const defaultProperty: PropertyProfile = {
     repurchasedLandDeclaredValue: null,
     soldLandDeclaredValue: null,
     sameLandOwner: false,
+    landPriceIncrementParcels: [],
   },
 }
 
@@ -159,6 +160,8 @@ function migrateProperty(profile: PropertyProfile): PropertyProfile {
     taxProfile: {
       ...defaultProperty.taxProfile,
       ...(profile.taxProfile ?? {}),
+      landPriceIncrementParcels:
+        profile.taxProfile?.landPriceIncrementParcels ?? [],
     },
   }
 }

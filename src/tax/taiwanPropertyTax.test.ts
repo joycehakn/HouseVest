@@ -3,6 +3,7 @@ import {
   calculateTaiwanPropertyTax,
   determineStandardRate,
   determineTaxRegime,
+  estimateLandPriceIncrementTotal,
   type TaiwanPropertyTaxInput,
 } from "./taiwanPropertyTax"
 
@@ -35,6 +36,7 @@ const input: TaiwanPropertyTaxInput = {
     repurchasedLandDeclaredValue: null,
     soldLandDeclaredValue: null,
     sameLandOwner: false,
+    landPriceIncrementParcels: [],
   },
 }
 
@@ -135,5 +137,32 @@ describe("Taiwan property tax", () => {
     expect(result.landValueRepurchaseRefund).toBe(100_000)
     expect(result.totalRepurchaseRefund).toBe(450_000)
     expect(result.netTaxAfterRefund).toBe(350_000)
+  })
+
+  it("estimates and totals land price increments for multiple parcels", () => {
+    expect(estimateLandPriceIncrementTotal([
+      {
+        id: "land-1",
+        name: "地號 A",
+        currentDeclaredValuePerSquareMeter: 100_000,
+        previousDeclaredValuePerSquareMeter: 50_000,
+        cpiAdjustmentPercent: 120,
+        areaSquareMeters: 20,
+        ownershipNumerator: 1,
+        ownershipDenominator: 2,
+        improvementCosts: 50_000,
+      },
+      {
+        id: "land-2",
+        name: "資料未齊",
+        currentDeclaredValuePerSquareMeter: null,
+        previousDeclaredValuePerSquareMeter: 10_000,
+        cpiAdjustmentPercent: 100,
+        areaSquareMeters: 10,
+        ownershipNumerator: 1,
+        ownershipDenominator: 1,
+        improvementCosts: 0,
+      },
+    ])).toBe(350_000)
   })
 })

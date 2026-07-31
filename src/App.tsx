@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, Line, LineChart as PerformanceLineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Building2, Calculator, Camera, CircleHelp, HousePlus, Landmark, LineChart as LineChartIcon, Pencil, PiggyBank, Plus, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
 import {
   calculatePropertyAnalysis,
@@ -169,8 +169,6 @@ function App() {
     salePrice: item.salePrice,
     tax: item.result.tax,
     profit: item.result.profit,
-    cagr: Number(item.result.cagr.toFixed(1)),
-    irr: Number(item.result.leveragedIrr.toFixed(1)),
   })), [scenarioComparisons])
 
   const details = useMemo<Record<string, CalculationDetail>>(() => ({
@@ -528,32 +526,21 @@ function App() {
           <div className="scenarioVisuals">
             <section className="scenarioChart">
               <h3>稅金與稅後淨利</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={scenarioChartData} margin={{ top: 12, right: 8, left: 0, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={330}>
+                <BarChart data={scenarioChartData} margin={{ top: 32, right: 18, left: 5, bottom: 5 }} barCategoryGap="22%">
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis width={50} tick={{ fontSize: 10 }} tickFormatter={value => `${Math.round(Number(value) / 10_000)}萬`} />
                   <Tooltip formatter={(value, name) => [nt(Number(value)), name === 'tax' ? '稅金' : '稅後淨利']} labelFormatter={label => `${label}成交價情境`} />
                   <Legend formatter={value => value === 'tax' ? '稅金' : '稅後淨利'} />
                   <ReferenceLine y={0} stroke="#64748b" />
-                  <Bar dataKey="tax" fill="#f59e0b" radius={[5, 5, 0, 0]} />
-                  <Bar dataKey="profit" fill="#2563eb" radius={[5, 5, 0, 0]} />
+                  <Bar dataKey="tax" fill="#f59e0b" radius={[5, 5, 0, 0]}>
+                    <LabelList dataKey="tax" position="top" formatter={value => `${Math.round(Number(value) / 10_000)}萬`} />
+                  </Bar>
+                  <Bar dataKey="profit" fill="#2563eb" radius={[5, 5, 0, 0]}>
+                    <LabelList dataKey="profit" position="top" formatter={value => `${Math.round(Number(value) / 10_000)}萬`} />
+                  </Bar>
                 </BarChart>
-              </ResponsiveContainer>
-            </section>
-            <section className="scenarioChart">
-              <h3>年化報酬率</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <PerformanceLineChart data={scenarioChartData} margin={{ top: 12, right: 15, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 10 }} tickFormatter={value => `${value}%`} />
-                  <Tooltip formatter={(value, name) => [`${Number(value).toFixed(1)}%`, name === 'cagr' ? '房屋 CAGR' : '自有資金 IRR']} labelFormatter={label => `${label}成交價情境`} />
-                  <Legend formatter={value => value === 'cagr' ? '房屋 CAGR' : '自有資金 IRR'} />
-                  <ReferenceLine y={0} stroke="#64748b" />
-                  <Line type="monotone" dataKey="cagr" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} />
-                  <Line type="monotone" dataKey="irr" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4 }} />
-                </PerformanceLineChart>
               </ResponsiveContainer>
             </section>
           </div>
@@ -564,10 +551,7 @@ function App() {
                 <thead><tr><th>投資績效</th>{scenarioComparisons.map(item => <th className={item.offset === 0 ? 'baseline' : ''} key={item.offset}><span>{item.label}</span><strong>{nt(item.salePrice)}</strong></th>)}</tr></thead>
                 <tbody>
                   <tr><th>{result.taxAnalysis.regimeLabel}初估</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.tax)}</td>)}</tr>
-                  <tr><th>出售實拿</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.netCash)}</td>)}</tr>
-                  <tr><th>稅後獲利</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.profit)}</td>)}</tr>
-                  <tr><th>房屋 CAGR</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{pct(item.result.cagr)}</td>)}</tr>
-                  <tr><th>自有資金 IRR</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{Number.isFinite(item.result.leveragedIrr) ? pct(item.result.leveragedIrr) : '無法計算'}</td>)}</tr>
+                  <tr><th>稅後淨利</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.profit)}</td>)}</tr>
                   <tr className="scenarioActions"><th>計算依據</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}><button onClick={() => showScenarioDetail(item)}><Calculator size={13}/>查看</button></td>)}</tr>
                 </tbody>
               </table>

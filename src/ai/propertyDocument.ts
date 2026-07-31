@@ -63,7 +63,17 @@ export function applyExtraction(
       continue
     }
     if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) continue
-    if (['deedTax', 'stampTax', 'registrationFees', 'agencyFee', 'legalFee', 'otherCosts'].includes(key)) {
+    if (key === 'otherCosts') {
+      const existing = next.customAcquisitionCosts.find(cost => cost.name === 'OCR 辨識其他費用')
+      next.customAcquisitionCosts = existing
+        ? next.customAcquisitionCosts.map(cost =>
+            cost.id === existing.id ? { ...cost, amount: value } : cost)
+        : [...next.customAcquisitionCosts, {
+            id: crypto.randomUUID(),
+            name: 'OCR 辨識其他費用',
+            amount: value,
+          }]
+    } else if (['deedTax', 'stampTax', 'registrationFees', 'agencyFee', 'legalFee'].includes(key)) {
       next.acquisitionCosts[key as keyof PropertyProfile['acquisitionCosts']] = value
     } else {
       next[key as 'purchasePrice'] = value
@@ -71,4 +81,3 @@ export function applyExtraction(
   }
   return next
 }
-

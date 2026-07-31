@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Building2, Calculator, Camera, HousePlus, Landmark, LineChart, Pencil, PiggyBank, SlidersHorizontal, Sparkles, X } from 'lucide-react'
+import { Building2, Calculator, Camera, HousePlus, Landmark, LineChart, Pencil, PiggyBank, Plus, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
 import {
   calculatePropertyAnalysis,
   type PropertyInputs as Inputs,
@@ -59,7 +59,10 @@ function App() {
   const [detail, setDetail] = useState<CalculationDetail | null>(null)
   const inputs = useMemo<Inputs>(() => ({
     purchasePrice: activeProperty.purchasePrice,
-    acquisitionCosts: totalAcquisitionCosts(activeProperty.acquisitionCosts),
+    acquisitionCosts: totalAcquisitionCosts(
+      activeProperty.acquisitionCosts,
+      activeProperty.customAcquisitionCosts,
+    ),
     originalLoan: activeProperty.originalLoan,
     currentLoanBalance: activeProperty.currentLoanBalance,
     totalMortgagePaymentsPaid: activeProperty.totalMortgagePaymentsPaid,
@@ -218,8 +221,8 @@ function App() {
         registrationFees: 0,
         agencyFee: 0,
         legalFee: 0,
-        otherCosts: 0,
       },
+      customAcquisitionCosts: [],
       purchasePrice: 0,
       originalLoan: 0,
       currentLoanBalance: 0,
@@ -330,7 +333,27 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
     onChange({ ...profile, [key]: value })
   const updateCost = (key: keyof PropertyProfile['acquisitionCosts'], value: number) =>
     onChange({ ...profile, acquisitionCosts: { ...profile.acquisitionCosts, [key]: value } })
-  const acquisitionCostTotal = totalAcquisitionCosts(profile.acquisitionCosts)
+  const addCustomCost = () => onChange({
+    ...profile,
+    customAcquisitionCosts: [
+      ...profile.customAcquisitionCosts,
+      { id: crypto.randomUUID(), name: '', amount: 0 },
+    ],
+  })
+  const updateCustomCost = (id: string, changes: { name?: string; amount?: number }) =>
+    onChange({
+      ...profile,
+      customAcquisitionCosts: profile.customAcquisitionCosts.map(cost =>
+        cost.id === id ? { ...cost, ...changes } : cost),
+    })
+  const removeCustomCost = (id: string) => onChange({
+    ...profile,
+    customAcquisitionCosts: profile.customAcquisitionCosts.filter(cost => cost.id !== id),
+  })
+  const acquisitionCostTotal = totalAcquisitionCosts(
+    profile.acquisitionCosts,
+    profile.customAcquisitionCosts,
+  )
 
   return <div className="drawerBackdrop" role="presentation" onMouseDown={onClose}>
     <aside className="drawer propertyEditor" role="dialog" aria-modal="true" aria-label="房屋基本資料" onMouseDown={event => event.stopPropagation()}>
@@ -351,7 +374,15 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
           <NumberInput label="登記與規費" value={profile.acquisitionCosts.registrationFees} onChange={value => updateCost('registrationFees', value)} />
           <NumberInput label="購入仲介費" value={profile.acquisitionCosts.agencyFee} onChange={value => updateCost('agencyFee', value)} />
           <NumberInput label="代書費" value={profile.acquisitionCosts.legalFee} onChange={value => updateCost('legalFee', value)} />
-          <NumberInput label="其他取得成本" value={profile.acquisitionCosts.otherCosts} onChange={value => updateCost('otherCosts', value)} />
+          <div className="customCosts">
+            <div className="customCostsHeader"><span>自訂取得成本</span><button type="button" onClick={addCustomCost}><Plus size={14}/>新增一筆</button></div>
+            {profile.customAcquisitionCosts.length === 0 && <p>尚未新增自訂項目</p>}
+            {profile.customAcquisitionCosts.map(cost => <div className="customCostRow" key={cost.id}>
+              <input aria-label="自訂成本名稱" placeholder="例如：履約保證費" value={cost.name} onChange={event => updateCustomCost(cost.id, { name: event.target.value })}/>
+              <div><input aria-label={`${cost.name || '自訂成本'}金額`} type="number" min="0" value={cost.amount} onChange={event => updateCustomCost(cost.id, { amount: Number(event.target.value) })}/><em>元</em></div>
+              <button type="button" aria-label={`刪除${cost.name || '自訂成本'}`} onClick={() => removeCustomCost(cost.id)}><Trash2 size={14}/></button>
+            </div>)}
+          </div>
           <div className="editorTotal"><span>購入相關成本合計</span><strong>{nt(acquisitionCostTotal)}</strong></div>
         </EditorSection>
         <EditorSection title="貸款資料">

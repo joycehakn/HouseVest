@@ -4,7 +4,12 @@ export type AcquisitionCosts = {
   registrationFees: number
   agencyFee: number
   legalFee: number
-  otherCosts: number
+}
+
+export type CustomAcquisitionCost = {
+  id: string
+  name: string
+  amount: number
 }
 
 export type PropertyProfile = {
@@ -14,6 +19,7 @@ export type PropertyProfile = {
   purchaseDate: string
   purchasePrice: number
   acquisitionCosts: AcquisitionCosts
+  customAcquisitionCosts: CustomAcquisitionCost[]
   originalLoan: number
   currentLoanBalance: number
   totalMortgagePaymentsPaid: number
@@ -41,8 +47,10 @@ export const defaultProperty: PropertyProfile = {
     registrationFees: 0,
     agencyFee: 0,
     legalFee: 0,
-    otherCosts: 230_867,
   },
+  customAcquisitionCosts: [
+    { id: "default-other-cost", name: "其他取得成本", amount: 230_867 },
+  ],
   originalLoan: 11_980_000,
   currentLoanBalance: 10_485_197,
   totalMortgagePaymentsPaid: 2_721_992,
@@ -51,8 +59,12 @@ export const defaultProperty: PropertyProfile = {
   currentMarketValue: 17_500_000,
 }
 
-export function totalAcquisitionCosts(costs: AcquisitionCosts): number {
-  return Object.values(costs).reduce((total, cost) => total + cost, 0)
+export function totalAcquisitionCosts(
+  costs: AcquisitionCosts,
+  customCosts: CustomAcquisitionCost[] = [],
+): number {
+  return Object.values(costs).reduce((total, cost) => total + cost, 0) +
+    customCosts.reduce((total, cost) => total + cost.amount, 0)
 }
 
 export function createDefaultDatabase(): PropertyDatabase {
@@ -72,6 +84,32 @@ function isPropertyDatabase(value: unknown): value is PropertyDatabase {
   )
 }
 
+function migrateProperty(profile: PropertyProfile): PropertyProfile {
+  const legacyCosts = profile.acquisitionCosts as AcquisitionCosts & {
+    otherCosts?: number
+  }
+  const customCosts = Array.isArray(profile.customAcquisitionCosts)
+    ? profile.customAcquisitionCosts
+    : legacyCosts.otherCosts
+      ? [{
+          id: `${profile.id}-legacy-other-cost`,
+          name: "其他取得成本（舊資料）",
+          amount: legacyCosts.otherCosts,
+        }]
+      : []
+  return {
+    ...profile,
+    acquisitionCosts: {
+      deedTax: Number(legacyCosts.deedTax) || 0,
+      stampTax: Number(legacyCosts.stampTax) || 0,
+      registrationFees: Number(legacyCosts.registrationFees) || 0,
+      agencyFee: Number(legacyCosts.agencyFee) || 0,
+      legalFee: Number(legacyCosts.legalFee) || 0,
+    },
+    customAcquisitionCosts: customCosts,
+  }
+}
+
 export function loadPropertyDatabase(
   storage: Pick<Storage, "getItem">,
 ): PropertyDatabase {
@@ -79,7 +117,9 @@ export function loadPropertyDatabase(
     const saved = storage.getItem(PROPERTY_DATABASE_KEY)
     if (!saved) return createDefaultDatabase()
     const parsed: unknown = JSON.parse(saved)
-    return isPropertyDatabase(parsed) ? parsed : createDefaultDatabase()
+    return isPropertyDatabase(parsed)
+      ? { ...parsed, properties: parsed.properties.map(migrateProperty) }
+      : createDefaultDatabase()
   } catch {
     return createDefaultDatabase()
   }

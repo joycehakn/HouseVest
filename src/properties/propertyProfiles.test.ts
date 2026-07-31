@@ -16,8 +16,10 @@ describe("property profiles", () => {
         registrationFees: 20_000,
         agencyFee: 300_000,
         legalFee: 30_000,
-        otherCosts: 5_000,
-      }),
+      }, [
+        { id: "custom-1", name: "履約保證費", amount: 3_000 },
+        { id: "custom-2", name: "貸款設定費", amount: 2_000 },
+      ]),
     ).toBe(465_000)
   })
 
@@ -38,5 +40,24 @@ describe("property profiles", () => {
   it("falls back to the default property when saved data is invalid", () => {
     const storage = { getItem: () => "{not-json" }
     expect(loadPropertyDatabase(storage)).toEqual(createDefaultDatabase())
+  })
+
+  it("migrates the previous otherCosts value into a custom line item", () => {
+    const legacy = createDefaultDatabase()
+    const property = legacy.properties[0] as unknown as {
+      acquisitionCosts: Record<string, number>
+      customAcquisitionCosts?: unknown
+    }
+    property.acquisitionCosts.otherCosts = 12_345
+    delete property.customAcquisitionCosts
+    const storage = { getItem: () => JSON.stringify(legacy) }
+
+    const loaded = loadPropertyDatabase(storage)
+
+    expect(loaded.properties[0].customAcquisitionCosts).toEqual([{
+      id: "property-a-legacy-other-cost",
+      name: "其他取得成本（舊資料）",
+      amount: 12_345,
+    }])
   })
 })

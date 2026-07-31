@@ -231,6 +231,40 @@ function App() {
       },
     ]
   }, [inputs.purchaseDate, inputs.taxProfile.householdRegistrationDate])
+  const dateTimeline = useMemo(() => {
+    const references = dateComparisons.map(item => ({
+      key: item.key,
+      label: item.label,
+      date: item.saleDate,
+      kind: 'scenario' as const,
+    }))
+    const datedMilestones = dateMilestones
+      .filter((item): item is typeof item & { date: string } => item.date !== null)
+      .map((item, index) => ({
+        key: `milestone-${index}`,
+        label: item.label,
+        date: item.date,
+        note: item.note,
+        kind: 'milestone' as const,
+      }))
+    const allDates = [...references, ...datedMilestones].map(item => Date.parse(`${item.date}T00:00:00Z`))
+    const min = Math.min(...allDates)
+    const max = Math.max(...allDates)
+    const position = (date: string) => max === min ? 50 : (Date.parse(`${date}T00:00:00Z`) - min) / (max - min) * 100
+    const location = (date: string) => {
+      const nextIndex = references.findIndex(item => date < item.date)
+      if (nextIndex === 0) return `位於${references[0].label}之前`
+      if (nextIndex === -1) return `位於${references.at(-1)?.label}之後`
+      return `位於${references[nextIndex - 1].label}與${references[nextIndex].label}之間`
+    }
+    return {
+      items: [
+        ...references.map((item, index) => ({ ...item, position: position(item.date), lane: index % 2 })),
+        ...datedMilestones.map((item, index) => ({ ...item, position: position(item.date), lane: index % 2, location: location(item.date) })),
+      ],
+      missing: dateMilestones.filter(item => item.date === null),
+    }
+  }, [dateComparisons, dateMilestones])
 
   const details = useMemo<Record<string, CalculationDetail>>(() => ({
     marketValue: {
@@ -631,7 +665,14 @@ function App() {
           <div className="scenarioVisuals">
             <section className="scenarioChart">
               <h3>稅金與稅後淨利</h3>
-              {comparisonMode === 'date' && <div className="dateMilestones" aria-label="持有與設籍法規時間點">{dateMilestones.map(item => <div key={item.label}><span>{item.label}</span><strong>{item.date ?? '待輸入設籍日'}</strong><small>{item.note}</small></div>)}</div>}
+              {comparisonMode === 'date' && <div className="dateTimeline" aria-label="成交日期與法規時間軸">
+                <div className="timelineTrack" />
+                {dateTimeline.items.map(item => <div className={`timelinePoint ${item.kind} lane${item.lane}`} style={{ left: `${item.position}%` }} key={item.key}>
+                  <i />
+                  <div><span>{item.label}</span><strong>{item.date}</strong>{item.kind === 'milestone' && <small>{item.location}</small>}</div>
+                </div>)}
+                {dateTimeline.missing.map(item => <p className="timelineMissing" key={item.label}>{item.label}：待輸入設籍日期後定位</p>)}
+              </div>}
               <ResponsiveContainer width="100%" height={330}>
                 <BarChart data={scenarioChartData} margin={{ top: 32, right: 18, left: 5, bottom: 5 }} barCategoryGap="22%">
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />

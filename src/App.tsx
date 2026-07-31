@@ -55,6 +55,7 @@ const initialScenario: ScenarioInputs = {
 const money = (n: number) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Math.round(n))
 const pct = (n: number) => `${n.toFixed(1)}%`
 const nt = (n: number) => money(n)
+const wan = (n: number) => `${new Intl.NumberFormat('zh-TW', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n / 10_000)} 萬`
 const dayAfter = (date: string) => {
   const value = new Date(`${date}T00:00:00Z`)
   value.setUTCDate(value.getUTCDate() + 1)
@@ -507,13 +508,13 @@ function App() {
       <section className="metrics">
         <Card
           label="稅後淨利"
-          value={`${nt(result.profit)}（稅金 ${nt(result.tax)}）`}
+          value={`${wan(result.profit)}（稅金 ${wan(result.tax)}）`}
           note={`${result.taxAnalysis.regimeLabel}・查看淨利計算`}
           onClick={() => setDetail(details.profit)}
         />
         <Card
           label={`賣房稅費・${result.taxAnalysis.regimeLabel}`}
-          value={`${nt(result.tax)}（稅前交易所得 ${nt(result.taxAnalysis.transactionIncome)}${result.taxAnalysis.complete ? '' : '・資料未齊'}）`}
+          value={`${wan(result.tax)}（稅前交易所得 ${wan(result.taxAnalysis.transactionIncome)}${result.taxAnalysis.complete ? '' : '・資料未齊'}）`}
           note="查看稅制、稅率與完整計算"
           onClick={() => setDetail(details.transactionTax)}
         />

@@ -294,9 +294,6 @@ function App() {
       <header><div><p className="eyebrow">MY PROPERTY</p><h1>{activeProperty.name}資產儀表板</h1><p>{activeProperty.address || '尚未設定地址'}・用同一組已儲存資料理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>
 
       <section className="metrics">
-        <Card label="預估市值" value={nt(inputs.salePrice)} note="可在成交價情境直接設定" onClick={() => setDetail(details.marketValue)} />
-        <Card label="貸款餘額" value={nt(result.balance)} note="依銀行帳單手動輸入" onClick={() => setDetail(details.balance)} />
-        <Card label="房屋淨值" value={nt(result.equity)} note="市值減貸款" onClick={() => setDetail(details.equity)} />
         <Card label="出售實拿" value={nt(result.netCash)} note="扣交易成本、稅與貸款" onClick={() => setDetail(details.netCash)} />
       </section>
 

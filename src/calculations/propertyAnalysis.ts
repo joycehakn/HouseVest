@@ -213,7 +213,7 @@ export function calculatePropertyAnalysis(
     profile: inputs.taxProfile,
   })
   const taxableGain = taxAnalysis.taxableIncome
-  const tax = taxAnalysis.totalTax ?? 0
+  const tax = taxAnalysis.netTaxAfterRefund ?? taxAnalysis.totalTax ?? 0
   const netSaleBeforeLoan = inputs.salePrice - saleCosts - tax
   const netCash = netSaleBeforeLoan - balance
   const initialEquity = totalCost - inputs.originalLoan

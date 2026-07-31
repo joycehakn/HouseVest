@@ -78,6 +78,16 @@ export const defaultProperty: PropertyProfile = {
     noRentalOrBusinessUseSixYears: false,
     noSelfUseBenefitInPriorSixYears: false,
     involuntaryTransferEligible: false,
+    claimsRepurchaseBenefit: false,
+    repurchaseDate: null,
+    repurchasePrice: null,
+    oldAndNewHomesRegisteredAndOccupied: false,
+    oldHomeNoRentalOrBusinessOneYear: false,
+    acknowledgesFiveYearClawback: false,
+    claimsLandValueRepurchaseRefund: false,
+    repurchasedLandDeclaredValue: null,
+    soldLandDeclaredValue: null,
+    sameLandOwner: false,
   },
 }
 

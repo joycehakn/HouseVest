@@ -25,6 +25,16 @@ const input: TaiwanPropertyTaxInput = {
     noRentalOrBusinessUseSixYears: false,
     noSelfUseBenefitInPriorSixYears: false,
     involuntaryTransferEligible: false,
+    claimsRepurchaseBenefit: false,
+    repurchaseDate: null,
+    repurchasePrice: null,
+    oldAndNewHomesRegisteredAndOccupied: false,
+    oldHomeNoRentalOrBusinessOneYear: false,
+    acknowledgesFiveYearClawback: false,
+    claimsLandValueRepurchaseRefund: false,
+    repurchasedLandDeclaredValue: null,
+    soldLandDeclaredValue: null,
+    sameLandOwner: false,
   },
 }
 
@@ -92,5 +102,30 @@ describe("Taiwan property tax", () => {
     expect(result.regime).toBe("legacy")
     expect(result.houseLandIncomeTax).toBeNull()
     expect(result.complete).toBe(false)
+  })
+
+  it("calculates house-land and land-value repurchase refunds separately", () => {
+    const result = calculateTaiwanPropertyTax({
+      ...input,
+      profile: {
+        ...input.profile,
+        claimsRepurchaseBenefit: true,
+        repurchaseDate: "2027-08-01",
+        repurchasePrice: 8_750_000,
+        oldAndNewHomesRegisteredAndOccupied: true,
+        oldHomeNoRentalOrBusinessOneYear: true,
+        acknowledgesFiveYearClawback: true,
+        claimsLandValueRepurchaseRefund: true,
+        repurchasedLandDeclaredValue: 4_500_000,
+        soldLandDeclaredValue: 4_500_000,
+        sameLandOwner: true,
+      },
+    })
+
+    expect(result.repurchaseQualified).toBe(true)
+    expect(result.houseLandRepurchaseRefund).toBe(350_000)
+    expect(result.landValueRepurchaseRefund).toBe(100_000)
+    expect(result.totalRepurchaseRefund).toBe(450_000)
+    expect(result.netTaxAfterRefund).toBe(350_000)
   })
 })

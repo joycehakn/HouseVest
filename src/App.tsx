@@ -178,7 +178,7 @@ function App() {
       title: '房地交易所得稅初估',
       result: nt(result.tax),
       summary: `${result.taxAnalysis.regimeLabel}；${result.taxAnalysis.rateReason}。`,
-      formula: '課稅所得 = 交易所得 − 前3年交易損失 − 土地漲價總數額；總稅費 = 房地交易所得稅 + 土地增值稅',
+      formula: '退稅後淨稅費 = 房地交易所得稅 + 土地增值稅 − 房地合一重購退稅 − 土地增值稅重購退稅',
       rows: [
         { label: '預估成交價', value: nt(inputs.salePrice) },
         { label: '購入價格', value: nt(inputs.purchasePrice), operator: '−' },
@@ -200,7 +200,10 @@ function App() {
         { label: `適用稅率 ${result.taxAnalysis.appliedRate ?? '—'}%`, value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '×' },
         { label: '房地交易所得稅', value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '=' },
         { label: '土地增值稅', value: inputs.taxProfile.landValueIncrementTax === null ? '尚未填寫' : nt(result.taxAnalysis.landValueIncrementTax), operator: '+' },
-        { label: '賣房稅費合計', value: nt(result.tax), operator: '=' },
+        { label: '稅費合計（退稅前）', value: nt(result.taxAnalysis.totalTax ?? 0), operator: '=' },
+        { label: '房地合一重購退稅', value: nt(result.taxAnalysis.houseLandRepurchaseRefund), operator: '−' },
+        { label: '土地增值稅重購退稅', value: nt(result.taxAnalysis.landValueRepurchaseRefund), operator: '−' },
+        { label: '退稅後淨稅費', value: nt(result.tax), operator: '=' },
       ],
       note: result.taxAnalysis.complete
         ? `資料已齊全；仍應以稽徵機關核定為準。${result.taxAnalysis.warnings.join(' ')}`
@@ -629,6 +632,20 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
             <CheckInput label="本人、配偶及未成年子女前6年未用過此優惠" help="以家庭為單位檢查；本人、配偶與未成年子女在本次交易前6年內都不能曾適用自住房地優惠。" checked={profile.taxProfile.noSelfUseBenefitInPriorSixYears} onChange={checked => updateTaxProfile({ noSelfUseBenefitInPriorSixYears: checked })} />
           </div>}
           <CheckInput label="確認符合財政部公告的非自願性交易資格" help="例如符合公告的調職、非自願離職、重大疾病等特殊原因，且須準備證明文件由稽徵機關認定；不是單純急售即可勾選。" checked={profile.taxProfile.involuntaryTransferEligible} onChange={checked => updateTaxProfile({ involuntaryTransferEligible: checked })} />
+          <CheckInput label="準備申請自住房地重購退稅" help="先買後賣或先賣後買均可，但新、舊房地移轉登記日須相距2年內，兩者均須設籍並實際自住，舊屋出售前1年不得出租或營業。" checked={profile.taxProfile.claimsRepurchaseBenefit} onChange={checked => updateTaxProfile({ claimsRepurchaseBenefit: checked })} />
+          {profile.taxProfile.claimsRepurchaseBenefit && <div className="taxQualifications repurchase">
+            <TextInput label="重購移轉登記日" help="以新房地完成所有權移轉登記日為準；可先買後賣或先賣後買，與舊屋出售登記日須相距2年內。" type="date" value={profile.taxProfile.repurchaseDate ?? ''} onChange={value => updateTaxProfile({ repurchaseDate: value || null })} />
+            <NullableNumberInput label="重購房地成交價" help="房地合一所得稅退稅按重購價額占原出售價額的比例計算，最高不超過原已納所得稅。" value={profile.taxProfile.repurchasePrice} onChange={value => updateTaxProfile({ repurchasePrice: value })} />
+            <CheckInput label="新、舊房屋均已設籍並實際居住" help="本人、配偶或未成年子女須在新舊自住房屋設籍並有實際居住事實。" checked={profile.taxProfile.oldAndNewHomesRegisteredAndOccupied} onChange={checked => updateTaxProfile({ oldAndNewHomesRegisteredAndOccupied: checked })} />
+            <CheckInput label="舊屋出售前1年未出租、營業或執行業務" help="出售日前1年內只要曾出租、供營業或執行業務使用，通常就不符合本項重購優惠。" checked={profile.taxProfile.oldHomeNoRentalOrBusinessOneYear} onChange={checked => updateTaxProfile({ oldHomeNoRentalOrBusinessOneYear: checked })} />
+            <CheckInput label="了解新屋5年內改作他用或移轉會被追繳" help="重購後5年內若未設籍居住、出租、營業或再次移轉，原扣抵或退還的稅額可能被追繳。" checked={profile.taxProfile.acknowledgesFiveYearClawback} onChange={checked => updateTaxProfile({ acknowledgesFiveYearClawback: checked })} />
+            <CheckInput label="同時計算土地增值稅重購退稅" help="此項與房地合一所得稅退稅不同，必須使用新舊土地申報移轉現值，而且出售與重購土地所有權人須相同。" checked={profile.taxProfile.claimsLandValueRepurchaseRefund} onChange={checked => updateTaxProfile({ claimsLandValueRepurchaseRefund: checked })} />
+            {profile.taxProfile.claimsLandValueRepurchaseRefund && <>
+              <NullableNumberInput label="原出售土地申報移轉現值" help="填土地增值稅申報資料上的出售土地申報移轉現值，不是房地成交總價。" value={profile.taxProfile.soldLandDeclaredValue} onChange={value => updateTaxProfile({ soldLandDeclaredValue: value })} />
+              <NullableNumberInput label="新購土地申報移轉現值" help="填重購土地申報移轉現值；土地增值稅重購退稅的大小換屋比較以此數字計算。" value={profile.taxProfile.repurchasedLandDeclaredValue} onChange={value => updateTaxProfile({ repurchasedLandDeclaredValue: value })} />
+              <CheckInput label="出售與重購土地為同一所有權人" help="土地增值稅重購退稅要求新舊土地所有權人相同；僅以配偶另一方名義重購土地通常不符合。" checked={profile.taxProfile.sameLandOwner} onChange={checked => updateTaxProfile({ sameLandOwner: checked })} />
+            </>}
+          </div>}
           <div className="taxNotice warning">土地增值稅請優先填入地方稅機關核定或官方試算結果；房地成交價無法可靠推回公告土地現值。</div>
         </EditorSection>
         <div className="storageNote">資料只儲存在這台裝置的此瀏覽器中，不會上傳到伺服器。</div>
@@ -643,8 +660,8 @@ function EditorSection({ title, children }: { title: string; children: ReactNode
   return <section className="editorSection"><h3>{title}</h3>{children}</section>
 }
 
-function TextInput({ label, value, type = 'text', required = false, onChange }: { label: string; value: string; type?: string; required?: boolean; onChange: (value: string) => void }) {
-  return <label className="editorField"><span>{label}</span><input type={type} value={value} required={required} onChange={event => onChange(event.target.value)} /></label>
+function TextInput({ label, value, help, type = 'text', required = false, onChange }: { label: string; value: string; help?: string; type?: string; required?: boolean; onChange: (value: string) => void }) {
+  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><input type={type} value={value} required={required} onChange={event => onChange(event.target.value)} /></label>
 }
 
 function NumberInput({ label, value, help, suffix = '', step = 1, onChange }: { label: string; value: number; help?: string; suffix?: string; step?: number; onChange: (value: number) => void }) {

@@ -13,6 +13,16 @@ export type TaiwanPropertyTaxProfile = {
   noRentalOrBusinessUseSixYears: boolean
   noSelfUseBenefitInPriorSixYears: boolean
   involuntaryTransferEligible: boolean
+  claimsRepurchaseBenefit: boolean
+  repurchaseDate: string | null
+  repurchasePrice: number | null
+  oldAndNewHomesRegisteredAndOccupied: boolean
+  oldHomeNoRentalOrBusinessOneYear: boolean
+  acknowledgesFiveYearClawback: boolean
+  claimsLandValueRepurchaseRefund: boolean
+  repurchasedLandDeclaredValue: number | null
+  soldLandDeclaredValue: number | null
+  sameLandOwner: boolean
 }
 
 export type TaiwanPropertyTaxInput = {
@@ -40,6 +50,11 @@ export type TaiwanPropertyTaxResult = {
   houseLandIncomeTax: number | null
   landValueIncrementTax: number
   totalTax: number | null
+  houseLandRepurchaseRefund: number
+  landValueRepurchaseRefund: number
+  totalRepurchaseRefund: number
+  netTaxAfterRefund: number | null
+  repurchaseQualified: boolean
   effectiveTaxRate: number | null
   complete: boolean
   missingData: string[]
@@ -148,6 +163,11 @@ export function calculateTaiwanPropertyTax(
       houseLandIncomeTax: null,
       landValueIncrementTax: input.profile.landValueIncrementTax ?? 0,
       totalTax: null,
+      houseLandRepurchaseRefund: 0,
+      landValueRepurchaseRefund: 0,
+      totalRepurchaseRefund: 0,
+      netTaxAfterRefund: null,
+      repurchaseQualified: false,
       effectiveTaxRate: null,
       complete: false,
       missingData,
@@ -190,6 +210,54 @@ export function calculateTaiwanPropertyTax(
   }
   const landValueIncrementTax = input.profile.landValueIncrementTax ?? 0
   const totalTax = houseLandIncomeTax + landValueIncrementTax
+  const repurchaseWithinTwoYears =
+    input.profile.repurchaseDate !== null &&
+    Math.abs(utc(input.profile.repurchaseDate) - utc(input.saleDate)) <=
+      2 * 365.2425 * DAY
+  const repurchaseQualified =
+    input.profile.claimsRepurchaseBenefit &&
+    repurchaseWithinTwoYears &&
+    (input.profile.repurchasePrice ?? 0) > 0 &&
+    input.profile.oldAndNewHomesRegisteredAndOccupied &&
+    input.profile.oldHomeNoRentalOrBusinessOneYear &&
+    input.profile.acknowledgesFiveYearClawback
+  const repurchaseRatio = Math.min(
+    1,
+    (input.profile.repurchasePrice ?? 0) / input.salePrice,
+  )
+  const houseLandRepurchaseRefund = repurchaseQualified
+    ? houseLandIncomeTax * repurchaseRatio
+    : 0
+  const landRepurchaseQualified =
+    repurchaseQualified &&
+    input.profile.claimsLandValueRepurchaseRefund &&
+    input.profile.sameLandOwner &&
+    input.profile.repurchasedLandDeclaredValue !== null &&
+    input.profile.soldLandDeclaredValue !== null
+  const landRefundGap = landRepurchaseQualified
+    ? Math.max(
+        0,
+        (input.profile.repurchasedLandDeclaredValue ?? 0) -
+          ((input.profile.soldLandDeclaredValue ?? 0) - landValueIncrementTax),
+      )
+    : 0
+  const landValueRepurchaseRefund = Math.min(
+    landValueIncrementTax,
+    landRefundGap,
+  )
+  const totalRepurchaseRefund =
+    houseLandRepurchaseRefund + landValueRepurchaseRefund
+  const netTaxAfterRefund = Math.max(0, totalTax - totalRepurchaseRefund)
+
+  if (input.profile.claimsRepurchaseBenefit && !repurchaseQualified) {
+    warnings.push("已勾選重購退稅，但重購日期、價格或自住條件尚未全部符合。")
+  }
+  if (
+    input.profile.claimsLandValueRepurchaseRefund &&
+    !landRepurchaseQualified
+  ) {
+    warnings.push("土地增值稅重購退稅尚缺同一所有權人或新舊土地申報移轉現值資料。")
+  }
 
   return {
     regime,
@@ -206,6 +274,11 @@ export function calculateTaiwanPropertyTax(
     houseLandIncomeTax,
     landValueIncrementTax,
     totalTax,
+    houseLandRepurchaseRefund,
+    landValueRepurchaseRefund,
+    totalRepurchaseRefund,
+    netTaxAfterRefund,
+    repurchaseQualified,
     effectiveTaxRate:
       transactionIncome > 0 ? totalTax / transactionIncome * 100 : 0,
     complete: missingData.length === 0,

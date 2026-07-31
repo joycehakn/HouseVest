@@ -21,7 +21,12 @@ import {
   estimateLandPriceIncrementTotal,
   type LandPriceIncrementParcel,
 } from './tax/taiwanPropertyTax'
-import { fetchOfficialLandValue } from './land/officialLandValue'
+import {
+  extractLandNumber,
+  fetchOfficialLandValue,
+  fetchOfficialSectionCode,
+  inferCityCode,
+} from './land/officialLandValue'
 
 const landCityOptions = [
   ['A', '臺北市'], ['F', '新北市'], ['H', '桃園市'], ['B', '臺中市'],
@@ -605,13 +610,25 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
       [parcel.id]: { state: 'loading', message: '正在查詢內政部資料…' },
     }))
     try {
+      const cityCode = parcel.officialCityCode ||
+        inferCityCode(parcel.name)
+      const parsedLandNumber = extractLandNumber(
+        parcel.officialLandNumber || parcel.name,
+      )
+      const sectionCode = parcel.officialSectionCode ||
+        await fetchOfficialSectionCode(
+          parcel.name,
+          cityCode,
+        )
       const official = await fetchOfficialLandValue(
-        parcel.officialCityCode ?? '',
-        parcel.officialSectionCode ?? '',
-        parcel.officialLandNumber ?? '',
+        cityCode,
+        sectionCode,
+        parsedLandNumber,
       )
       updateLandParcel(parcel.id, {
         currentDeclaredValuePerSquareMeter: official.announcedCurrentValue,
+        officialCityCode: cityCode,
+        officialSectionCode: sectionCode,
         officialLandNumber: official.landNumber,
         officialLookupAt: new Date().toISOString(),
         officialProvider: official.provider,
@@ -620,7 +637,7 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
         ...current,
         [parcel.id]: {
           state: 'success',
-          message: `已帶入每平方公尺 ${nt(official.announcedCurrentValue)}；來源：${official.provider}`,
+          message: `已解析段碼 ${sectionCode}、地號 ${parsedLandNumber}，並帶入每平方公尺 ${nt(official.announcedCurrentValue)}；來源：${official.provider}`,
         },
       }))
     } catch (error) {
@@ -772,7 +789,7 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
                     <TextInput label="段小段代碼" help="內政部API使用4碼段小段代碼，不是段名。可由土地謄本或政府土地段名代碼資料查得。" value={parcel.officialSectionCode ?? ''} onChange={value => updateLandParcel(parcel.id, { officialSectionCode: value.replace(/\D/g, '').slice(0, 4) })} />
                     <a className="sectionCodeLink" href="https://data.gov.tw/dataset/122674" target="_blank" rel="noreferrer">查詢官方土地段名代碼</a>
                     <TextInput label="地號" help="可輸入427或427-13；系統會自動轉為官方母號、子號各4碼格式。" value={parcel.officialLandNumber ?? ''} onChange={value => updateLandParcel(parcel.id, { officialLandNumber: value })} />
-                    <button type="button" disabled={landLookupStatus[parcel.id]?.state === 'loading'} onClick={() => lookupOfficialLandValue(parcel)}>從官方資料帶入</button>
+                    <button type="button" disabled={landLookupStatus[parcel.id]?.state === 'loading'} onClick={() => lookupOfficialLandValue(parcel)}>解析完整地號並查官方資料</button>
                     {landLookupStatus[parcel.id] && <div className={`lookupStatus ${landLookupStatus[parcel.id].state}`}>{landLookupStatus[parcel.id].message}</div>}
                     {parcel.officialLookupAt && <small>上次查詢：{new Date(parcel.officialLookupAt).toLocaleString('zh-TW')}</small>}
                   </div>

@@ -28,12 +28,19 @@ export type DateScenarioComparison = {
 
 export function createDateScenarioComparisons(
   inputs: PropertyInputs,
+  stepMonths = 6,
 ): DateScenarioComparison[] {
+  const safeStep = Math.max(1, Math.round(stepMonths))
+  const formatStepLabel = (months: number) => months === 6
+    ? '半年'
+    : months % 12 === 0
+      ? `${months / 12}年`
+      : `${months}個月`
   const steps = [
     { key: 'base', months: 0, label: '基準日', adjustment: '基準出售日', saleDate: inputs.saleDate },
-    { key: 'six-months', months: 6, label: '基準日＋半年', adjustment: '基準日後 6 個月', saleDate: addMonths(inputs.saleDate, 6) },
-    { key: 'one-year', months: 12, label: '基準日＋1年', adjustment: '基準日後 12 個月', saleDate: addMonths(inputs.saleDate, 12) },
-    { key: 'two-years', months: 24, label: '基準日＋2年', adjustment: '基準日後 24 個月', saleDate: addMonths(inputs.saleDate, 24) },
+    { key: 'step-1', months: safeStep, label: `基準日＋${formatStepLabel(safeStep)}`, adjustment: `基準日後 ${safeStep} 個月`, saleDate: addMonths(inputs.saleDate, safeStep) },
+    { key: 'step-2', months: safeStep * 2, label: `基準日＋${formatStepLabel(safeStep * 2)}`, adjustment: `基準日後 ${safeStep * 2} 個月`, saleDate: addMonths(inputs.saleDate, safeStep * 2) },
+    { key: 'step-4', months: safeStep * 4, label: `基準日＋${formatStepLabel(safeStep * 4)}`, adjustment: `基準日後 ${safeStep * 4} 個月`, saleDate: addMonths(inputs.saleDate, safeStep * 4) },
   ]
 
   return steps.map(item => {

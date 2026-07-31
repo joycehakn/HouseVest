@@ -41,4 +41,10 @@ describe('date scenario comparisons', () => {
     expect(addMonths('2024-08-31', 6)).toBe('2025-02-28')
     expect(addMonths('2024-02-29', 12)).toBe('2025-02-28')
   })
+
+  it('uses a custom month step for all displayed date scenarios', () => {
+    expect(createDateScenarioComparisons(inputs, 3).map(item => item.saleDate)).toEqual([
+      '2026-08-31', '2026-11-30', '2027-02-28', '2027-08-31',
+    ])
+  })
 })

@@ -28,7 +28,7 @@ import {
   inferCityCode,
 } from './land/officialLandValue'
 import { fetchTaxCpi } from './land/taxCpi'
-import { addYears, createDateScenarioComparisons } from './scenarios/dateScenarios'
+import { addMonths, addYears, createDateScenarioComparisons } from './scenarios/dateScenarios'
 import {
   createValidationCase,
   loadValidationCase,
@@ -100,6 +100,8 @@ function App() {
   const [editingProperty, setEditingProperty] = useState<PropertyProfile | null>(null)
   const [detail, setDetail] = useState<CalculationDetail | null>(null)
   const [comparisonMode, setComparisonMode] = useState<'price' | 'date'>('price')
+  const [priceComparisonStep, setPriceComparisonStep] = useState(500_000)
+  const [dateComparisonStepMonths, setDateComparisonStepMonths] = useState(6)
   const inputs = useMemo<Inputs>(() => ({
     purchasePrice: activeProperty.purchasePrice,
     acquisitionCosts: totalAcquisitionCosts(
@@ -168,11 +170,11 @@ function App() {
       })),
   ], [inputs.sellingAgencyFeeRate, result.sellingAgencyFee, scenario.customSellingCosts])
   const scenarioComparisons = useMemo(() => [
-    { offset: -1_000_000, label: '−100 萬' },
-    { offset: -500_000, label: '−50 萬' },
+    { offset: -priceComparisonStep * 2, label: `−${money(priceComparisonStep * 2 / 10_000)} 萬` },
+    { offset: -priceComparisonStep, label: `−${money(priceComparisonStep / 10_000)} 萬` },
     { offset: 0, label: '基準情境' },
-    { offset: 500_000, label: '＋50 萬' },
-    { offset: 1_000_000, label: '＋100 萬' },
+    { offset: priceComparisonStep, label: `＋${money(priceComparisonStep / 10_000)} 萬` },
+    { offset: priceComparisonStep * 2, label: `＋${money(priceComparisonStep * 2 / 10_000)} 萬` },
   ].map(item => {
     const salePrice = Math.max(0, inputs.salePrice + item.offset)
     return {
@@ -180,8 +182,8 @@ function App() {
       salePrice,
       result: calculatePropertyAnalysis({ ...inputs, salePrice }),
     }
-  }), [inputs])
-  const dateComparisons = useMemo(() => createDateScenarioComparisons(inputs), [inputs])
+  }), [inputs, priceComparisonStep])
+  const dateComparisons = useMemo(() => createDateScenarioComparisons(inputs, dateComparisonStepMonths), [dateComparisonStepMonths, inputs])
   const comparisonItems = useMemo(() => comparisonMode === 'price'
     ? scenarioComparisons.map(item => ({
         key: `price-${item.offset}`,
@@ -495,6 +497,17 @@ function App() {
     if (value <= activeProperty.purchaseDate || value < activeProperty.mortgageDataDate) return current
     return { ...current, saleDate: value }
   })
+  const shiftComparisonBaseline = (direction: -1 | 1) => {
+    if (comparisonMode === 'price') {
+      setScenario(current => ({
+        ...current,
+        salePrice: Math.max(0, current.salePrice + direction * priceComparisonStep),
+      }))
+      return
+    }
+    const nextDate = addMonths(scenario.saleDate, direction * dateComparisonStepMonths)
+    updateSaleDate(nextDate)
+  }
   const addSellingCost = () => setScenario(current => ({
     ...current,
     customSellingCosts: [
@@ -659,9 +672,13 @@ function App() {
         <article className="panel performance">
           <div className="panelTitle"><div><p className="eyebrow">SCENARIO COMPARISON</p><h2>{comparisonMode === 'price' ? '五種成交價情境比較' : '成交日期情境比較'}</h2></div><Sparkles size={20}/></div>
           <div className="comparisonMode" role="group" aria-label="情境比較模式"><button className={comparisonMode === 'price' ? 'active' : ''} onClick={() => setComparisonMode('price')}>成交價</button><button className={comparisonMode === 'date' ? 'active' : ''} onClick={() => setComparisonMode('date')}>成交日期</button></div>
+          <div className="scenarioStepper">
+            <label><span>{comparisonMode === 'price' ? '每格金額' : '每格月數'}</span><input aria-label={comparisonMode === 'price' ? '成交價情境每格金額' : '成交日期情境每格月數'} type="number" min="1" step={comparisonMode === 'price' ? 10_000 : 1} value={comparisonMode === 'price' ? priceComparisonStep : dateComparisonStepMonths} onChange={event => comparisonMode === 'price' ? setPriceComparisonStep(Math.max(10_000, Number(event.target.value) || 10_000)) : setDateComparisonStepMonths(Math.max(1, Math.round(Number(event.target.value) || 1)))} /><em>{comparisonMode === 'price' ? '' : '個月'}</em></label>
+            <div><button type="button" aria-label={comparisonMode === 'price' ? '基準成交價減一格' : '基準出售日減一格'} onClick={() => shiftComparisonBaseline(-1)}>←</button><strong>{comparisonMode === 'price' ? nt(inputs.salePrice) : inputs.saleDate}</strong><button type="button" aria-label={comparisonMode === 'price' ? '基準成交價加一格' : '基準出售日加一格'} onClick={() => shiftComparisonBaseline(1)}>→</button></div>
+          </div>
           <p className="comparisonSummary">{comparisonMode === 'price'
-            ? `固定出售日 ${inputs.saleDate}，以 ${nt(inputs.salePrice)} 為基準比較上下 50 萬與 100 萬。`
-            : `固定成交價 ${nt(inputs.salePrice)}，比較基準日、半年後、1 年後與2 年後。`}</p>
+            ? `固定出售日 ${inputs.saleDate}，以每格 ${nt(priceComparisonStep)} 比較基準價上下各 1 格與 2 格。`
+            : `固定成交價 ${nt(inputs.salePrice)}，以每格 ${dateComparisonStepMonths} 個月比較基準日與後續日期。`}</p>
           <div className="scenarioVisuals">
             <section className="scenarioChart">
               <h3>稅金與稅後淨利</h3>

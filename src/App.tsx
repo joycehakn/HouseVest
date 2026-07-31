@@ -294,7 +294,7 @@ function App() {
       <header><div><p className="eyebrow">MY PROPERTY</p><h1>{activeProperty.name}資產儀表板</h1><p>{activeProperty.address || '尚未設定地址'}・用同一組已儲存資料理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>
 
       <section className="metrics">
-        <Card label="預估市值" value={nt(inputs.salePrice)} note="可用滑桿調整" onClick={() => setDetail(details.marketValue)} />
+        <Card label="預估市值" value={nt(inputs.salePrice)} note="可在成交價情境直接設定" onClick={() => setDetail(details.marketValue)} />
         <Card label="貸款餘額" value={nt(result.balance)} note="依銀行帳單手動輸入" onClick={() => setDetail(details.balance)} />
         <Card label="房屋淨值" value={nt(result.equity)} note="市值減貸款" onClick={() => setDetail(details.equity)} />
         <Card label="出售實拿" value={nt(result.netCash)} note="扣交易成本、稅與貸款" onClick={() => setDetail(details.netCash)} />
@@ -313,9 +313,7 @@ function App() {
 
         <article className="panel controls">
           <div className="panelTitle"><div><p className="eyebrow">LIVE SCENARIO</p><h2>成交價情境</h2></div><SlidersHorizontal size={20}/></div>
-          <label>預估成交價 <b>NT$ {money(inputs.salePrice)}</b></label>
-          <input type="range" min="1_000_000" max="50_000_000" step="100_000" value={inputs.salePrice} onChange={e => updateScenarioNumber('salePrice', Number(e.target.value))}/>
-          <div className="range"><span>100 萬</span><span>5,000 萬</span></div>
+          <label className="priceInput"><span>預估成交價</span><div><em>NT$</em><input aria-label="預估成交價" type="number" min="0" step="10000" placeholder="直接輸入金額" value={inputs.salePrice || ''} onChange={event => updateScenarioNumber('salePrice', event.target.value === '' ? 0 : Number(event.target.value))}/><small>元</small></div></label>
           <div className="savedFact"><span>購入成交日</span><strong>{activeProperty.purchaseDate}</strong></div>
           <DateField label="出售成交日" value={inputs.saleDate} min={activeProperty.mortgageDataDate} onChange={updateSaleDate} />
           <div className="holdingPeriod"><span>自動計算持有期間</span><strong>{money(result.holdingDays)} 天・{result.holdingYears.toFixed(3)} 年</strong></div>

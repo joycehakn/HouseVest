@@ -866,7 +866,21 @@ function PropertyEditor({ profile, saleDate, onChange, onPersist, onSave, onClos
               })}
               <button className="addLandParcel" type="button" onClick={addLandParcel}><Plus size={14}/>新增一筆土地</button>
               <div className="landEstimateTotal"><span>預估土地漲價總數額合計</span><strong>{landEstimateComplete ? nt(estimatedLandPriceIncrementTotal) : '資料未齊'}</strong></div>
-              <button className="applyLandEstimate" type="button" disabled={!landEstimateComplete} onClick={() => updateTaxProfile({ landPriceIncrementTotal: estimatedLandPriceIncrementTotal, landPriceIncrementSource: 'estimate' })}>套用預估合計</button>
+              <button
+                className="applyLandEstimate"
+                type="button"
+                disabled={!landEstimateComplete}
+                onClick={event => {
+                  updateTaxProfile({
+                    landPriceIncrementTotal: estimatedLandPriceIncrementTotal,
+                    landPriceIncrementSource: 'estimate',
+                  })
+                  const estimator = event.currentTarget.closest('details')
+                  if (estimator instanceof HTMLDetailsElement) estimator.open = false
+                }}
+              >
+                套用預估合計
+              </button>
               <p className="estimateCaveat">此為規劃用預估；正式申報仍以土地增值稅繳款書或免稅證明書核定金額為準。</p>
             </div>
           </details>

@@ -22,6 +22,7 @@ const input: TaiwanPropertyTaxInput = {
     landValueIncrementTax: 100_000,
     deductibleLandValueIncrementTax: 0,
     claimsSelfUseBenefit: false,
+    householdRegistrationDate: null,
     householdRegisteredAndLivedSixYears: false,
     noRentalOrBusinessUseSixYears: false,
     noSelfUseBenefitInPriorSixYears: false,
@@ -91,6 +92,7 @@ describe("Taiwan property tax", () => {
       profile: {
         ...input.profile,
         claimsSelfUseBenefit: true,
+        householdRegistrationDate: "2019-01-02",
         householdRegisteredAndLivedSixYears: true,
         noRentalOrBusinessUseSixYears: true,
         noSelfUseBenefitInPriorSixYears: true,
@@ -101,6 +103,28 @@ describe("Taiwan property tax", () => {
     expect(result.selfUseExemption).toBe(4_000_000)
     expect(result.taxableIncome).toBe(6_000_000)
     expect(result.houseLandIncomeTax).toBe(200_000)
+    expect(result.registrationSixYearsQualified).toBe(true)
+    expect(result.selfUseRegistrationEligibleDate).toBe("2025-01-02")
+  })
+
+  it("does not apply self-use treatment before registration reaches six years", () => {
+    const result = calculateTaiwanPropertyTax({
+      ...input,
+      purchaseDate: "2018-01-01",
+      saleDate: "2026-01-02",
+      profile: {
+        ...input.profile,
+        claimsSelfUseBenefit: true,
+        householdRegistrationDate: "2021-01-03",
+        householdRegisteredAndLivedSixYears: true,
+        noRentalOrBusinessUseSixYears: true,
+        noSelfUseBenefitInPriorSixYears: true,
+      },
+    })
+
+    expect(result.selfUseQualified).toBe(false)
+    expect(result.registrationSixYearsQualified).toBe(false)
+    expect(result.selfUseRegistrationEligibleDate).toBe("2027-01-03")
   })
 
   it("does not invent a separated tax result for legacy transactions", () => {

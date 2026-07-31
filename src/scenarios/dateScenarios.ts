@@ -35,14 +35,20 @@ export type DateScenarioComparison = {
 export function createDateScenarioComparisons(
   inputs: PropertyInputs,
 ): DateScenarioComparison[] {
-  const sixYearDate = addYears(inputs.purchaseDate, 6)
+  const ownershipSixYearDate = addYears(inputs.purchaseDate, 6)
+  const registrationSixYearDate = inputs.taxProfile.householdRegistrationDate
+    ? addYears(inputs.taxProfile.householdRegistrationDate, 6)
+    : null
+  const sixYearDate = registrationSixYearDate && registrationSixYearDate > ownershipSixYearDate
+    ? registrationSixYearDate
+    : ownershipSixYearDate
   const tenYearRateDate = dayAfter(addYears(inputs.purchaseDate, 10))
   const halfYearDate = addMonths(inputs.saleDate, 6)
   const threeYearDate = addMonths(inputs.saleDate, 36)
   const steps = [
     { key: 'base', months: 0, label: '基準日', adjustment: '基準出售日', saleDate: inputs.saleDate },
     sixYearDate > halfYearDate
-      ? { key: 'six-years', months: 6, label: '持有滿 6 年', adjustment: '自住優惠年限門檻', saleDate: sixYearDate }
+      ? { key: 'six-years', months: 6, label: inputs.taxProfile.householdRegistrationDate ? '自住條件滿 6 年' : '持有滿 6 年', adjustment: inputs.taxProfile.householdRegistrationDate ? '持有與設籍年限均滿 6 年' : '仍須補設籍日期與居住條件', saleDate: sixYearDate }
       : { key: 'six-months', months: 6, label: '半年後', adjustment: '基準日後 6 個月', saleDate: halfYearDate },
     { key: 'one-year', months: 12, label: '1 年後', adjustment: '基準日後 12 個月', saleDate: addMonths(inputs.saleDate, 12) },
     { key: 'two-years', months: 24, label: '2 年後', adjustment: '基準日後 24 個月', saleDate: addMonths(inputs.saleDate, 24) },

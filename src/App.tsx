@@ -214,7 +214,13 @@ function App() {
     { years: 6, strict: false, label: '持有滿 6 年', note: '可能具備自住房地優惠的年限門檻，仍須符合設籍與使用條件' },
     { years: 10, strict: true, label: '持有超過 10 年', note: '一般稅率可能由 20% 降至 15%' },
   ].map(item => {
-    const anniversary = addYears(inputs.purchaseDate, item.years)
+    const ownershipAnniversary = addYears(inputs.purchaseDate, item.years)
+    const registrationAnniversary = item.years === 6 && inputs.taxProfile.householdRegistrationDate
+      ? addYears(inputs.taxProfile.householdRegistrationDate, 6)
+      : null
+    const anniversary = registrationAnniversary && registrationAnniversary > ownershipAnniversary
+      ? registrationAnniversary
+      : ownershipAnniversary
     return { ...item, date: item.strict ? dayAfter(anniversary) : anniversary }
   }), [inputs.purchaseDate])
 
@@ -1052,7 +1058,9 @@ function PropertyEditor({ profile, saleDate, onChange, onClose }: { profile: Pro
           <NumberInput label="可列費用的土地增值稅部分" help="土地增值稅通常不得全額再列費用；只有符合規定的未減除土地漲價總數額所對應部分才可列入。沒有稅務文件確認時填0。" value={profile.taxProfile.deductibleLandValueIncrementTax} onChange={value => updateTaxProfile({ deductibleLandValueIncrementTax: value })} />
           <CheckInput label="準備申請自住房地優惠" help="只有同時符合設籍居住、6年內未出租營業，以及家庭前6年未使用過優惠等條件，才可適用400萬元免稅額及超過部分10%。" checked={profile.taxProfile.claimsSelfUseBenefit} onChange={checked => updateTaxProfile({ claimsSelfUseBenefit: checked })} />
           {profile.taxProfile.claimsSelfUseBenefit && <div className="taxQualifications">
-            <CheckInput label="本人、配偶或未成年子女設籍、持有並居住連續滿6年" help="設籍、持有與實際居住三項都必須連續滿6年，僅持有房屋滿6年並不足夠。" checked={profile.taxProfile.householdRegisteredAndLivedSixYears} onChange={checked => updateTaxProfile({ householdRegisteredAndLivedSixYears: checked })} />
+            <TextInput label="本人、配偶或未成年子女設籍日期" help="請依戶口名簿或戶籍謄本填寫在本房屋辦竣戶籍登記的日期。系統會從此日期計算連續滿6年的最早日期。" type="date" min={profile.purchaseDate} value={profile.taxProfile.householdRegistrationDate ?? ''} onChange={value => updateTaxProfile({ householdRegistrationDate: value || null })} />
+            {profile.taxProfile.householdRegistrationDate && <div className="selfUseEligibility"><span>設籍連續滿 6 年日期</span><strong>{addYears(profile.taxProfile.householdRegistrationDate, 6)}</strong><small>{saleDate >= addYears(profile.taxProfile.householdRegistrationDate, 6) ? '出售日已達設籍年限；仍須確認持有、實住及其他條件。' : `目前出售日尚差距，最早須於 ${addYears(profile.taxProfile.householdRegistrationDate, 6)} 或之後交易。`}</small></div>}
+            <CheckInput label="確認自設籍日起持續實際居住" help="戶籍只是其中一項證明；仍須有連續實際居住事實。系統無法僅由設籍日期自動確認居住狀況。" checked={profile.taxProfile.householdRegisteredAndLivedSixYears} onChange={checked => updateTaxProfile({ householdRegisteredAndLivedSixYears: checked })} />
             <CheckInput label="交易前6年內未出租、營業或執行業務" help="出售日前6年內，該房地不得出租、供營業或執行業務使用；若曾有使用情形，請勿勾選。" checked={profile.taxProfile.noRentalOrBusinessUseSixYears} onChange={checked => updateTaxProfile({ noRentalOrBusinessUseSixYears: checked })} />
             <CheckInput label="本人、配偶及未成年子女前6年未用過此優惠" help="以家庭為單位檢查；本人、配偶與未成年子女在本次交易前6年內都不能曾適用自住房地優惠。" checked={profile.taxProfile.noSelfUseBenefitInPriorSixYears} onChange={checked => updateTaxProfile({ noSelfUseBenefitInPriorSixYears: checked })} />
           </div>}
@@ -1087,8 +1095,8 @@ function EditorSection({ title, children }: { title: string; children: ReactNode
   return <section className="editorSection"><h3>{title}</h3>{children}</section>
 }
 
-function TextInput({ label, value, help, type = 'text', required = false, onChange }: { label: string; value: string; help?: string; type?: string; required?: boolean; onChange: (value: string) => void }) {
-  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><input type={type} value={value} required={required} onChange={event => onChange(event.target.value)} /></label>
+function TextInput({ label, value, help, type = 'text', min, required = false, onChange }: { label: string; value: string; help?: string; type?: string; min?: string; required?: boolean; onChange: (value: string) => void }) {
+  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><input type={type} min={min} value={value} required={required} onChange={event => onChange(event.target.value)} /></label>
 }
 
 function NumberInput({ label, value, help, suffix = '', step = 1, min = 0, max, onChange }: { label: string; value: number; help?: string; suffix?: string; step?: number; min?: number; max?: number; onChange: (value: number) => void }) {

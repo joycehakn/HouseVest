@@ -32,6 +32,7 @@ const inputs: PropertyInputs = {
     landValueIncrementTax: 0,
     deductibleLandValueIncrementTax: 0,
     claimsSelfUseBenefit: false,
+    householdRegistrationDate: null,
     householdRegisteredAndLivedSixYears: false,
     noRentalOrBusinessUseSixYears: false,
     noSelfUseBenefitInPriorSixYears: false,

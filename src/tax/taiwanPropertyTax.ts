@@ -32,6 +32,7 @@ export type TaiwanPropertyTaxProfile = {
   landValueIncrementTax: number | null
   deductibleLandValueIncrementTax: number
   claimsSelfUseBenefit: boolean
+  householdRegistrationDate: string | null
   householdRegisteredAndLivedSixYears: boolean
   noRentalOrBusinessUseSixYears: boolean
   noSelfUseBenefitInPriorSixYears: boolean
@@ -102,6 +103,8 @@ export type TaiwanPropertyTaxResult = {
   appliedRate: number | null
   rateReason: string
   selfUseQualified: boolean
+  registrationSixYearsQualified: boolean
+  selfUseRegistrationEligibleDate: string | null
   selfUseExemption: number
   houseLandIncomeTax: number | null
   landValueIncrementTax: number
@@ -118,6 +121,13 @@ export type TaiwanPropertyTaxResult = {
 }
 
 const DAY = 86_400_000
+
+function addCalendarYears(value: string, years: number): string {
+  const [year, month, day] = value.split('-').map(Number)
+  const targetYear = year + years
+  const lastDay = new Date(Date.UTC(targetYear, month, 0)).getUTCDate()
+  return `${targetYear}-${String(month).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`
+}
 
 function utc(value: string): number {
   const [year, month, day] = value.split("-").map(Number)
@@ -195,10 +205,16 @@ export function calculateTaiwanPropertyTax(
       input.profile.priorThreeYearTransactionLoss -
       (input.profile.landPriceIncrementTotal ?? 0),
   )
+  const registrationEligibleDate = input.profile.householdRegistrationDate
+    ? addCalendarYears(input.profile.householdRegistrationDate, 6)
+    : null
+  const registrationSixYearsQualified = registrationEligibleDate !== null &&
+    input.saleDate >= registrationEligibleDate
   const selfUseQualified =
     input.profile.claimsSelfUseBenefit &&
     input.profile.residency === "resident" &&
     years >= 6 &&
+    registrationSixYearsQualified &&
     input.profile.householdRegisteredAndLivedSixYears &&
     input.profile.noRentalOrBusinessUseSixYears &&
     input.profile.noSelfUseBenefitInPriorSixYears
@@ -222,6 +238,8 @@ export function calculateTaiwanPropertyTax(
       appliedRate: null,
       rateReason: "舊制案件不適用房地合一分離稅率",
       selfUseQualified: false,
+      registrationSixYearsQualified,
+      selfUseRegistrationEligibleDate: registrationEligibleDate,
       selfUseExemption: 0,
       houseLandIncomeTax: null,
       landValueIncrementTax: input.profile.landValueIncrementTax ?? 0,
@@ -336,6 +354,8 @@ export function calculateTaiwanPropertyTax(
     appliedRate,
     rateReason,
     selfUseQualified,
+    registrationSixYearsQualified,
+    selfUseRegistrationEligibleDate: registrationEligibleDate,
     selfUseExemption,
     houseLandIncomeTax,
     landValueIncrementTax,

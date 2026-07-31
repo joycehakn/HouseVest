@@ -78,6 +78,7 @@ export const defaultProperty: PropertyProfile = {
     landValueIncrementTax: null,
     deductibleLandValueIncrementTax: 0,
     claimsSelfUseBenefit: false,
+    householdRegistrationDate: null,
     householdRegisteredAndLivedSixYears: false,
     noRentalOrBusinessUseSixYears: false,
     noSelfUseBenefitInPriorSixYears: false,

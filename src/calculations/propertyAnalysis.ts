@@ -4,6 +4,7 @@ export type PropertyInputs = {
   originalLoan: number
   currentLoanBalance: number
   mortgageDataDate: string
+  mortgagePaymentDay: number
   totalMortgagePaymentsPaid: number
   mortgagePaymentMode: "actual" | "estimated"
   paymentEstimateAnnualRate: number
@@ -76,6 +77,39 @@ function monthsBetweenOrZero(startDate: string, endDate: string): number {
   const milliseconds = parseIsoDate(endDate) - parseIsoDate(startDate)
   if (!Number.isFinite(milliseconds) || milliseconds <= 0) return 0
   return Math.max(1, Math.round(milliseconds / 86_400_000 / 30.436875))
+}
+
+export function countMortgagePaymentDates(
+  startDate: string,
+  endDate: string,
+  paymentDay: number,
+): number {
+  const start = parseIsoDate(startDate)
+  const end = parseIsoDate(endDate)
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0
+
+  const safePaymentDay = Math.min(31, Math.max(1, Math.trunc(paymentDay)))
+  const [startYear, startMonth] = startDate.split("-").map(Number)
+  const [endYear, endMonth] = endDate.split("-").map(Number)
+  let count = 0
+
+  for (
+    let cursor = startYear * 12 + startMonth - 1;
+    cursor <= endYear * 12 + endMonth - 1;
+    cursor += 1
+  ) {
+    const year = Math.floor(cursor / 12)
+    const monthIndex = cursor % 12
+    const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate()
+    const paymentDate = Date.UTC(
+      year,
+      monthIndex,
+      Math.min(safePaymentDay, lastDay),
+    )
+    if (paymentDate > start && paymentDate <= end) count += 1
+  }
+
+  return count
 }
 
 export function mortgagePayment(
@@ -192,9 +226,10 @@ export function calculatePropertyAnalysis(
     inputs.annualRate,
     inputs.remainingLoanYears,
   )
-  const futurePaymentMonths = monthsBetweenOrZero(
+  const futurePaymentMonths = countMortgagePaymentDates(
     inputs.mortgageDataDate,
     inputs.saleDate,
+    inputs.mortgagePaymentDay,
   )
   const futureMortgagePayments = futureMonthlyPayment * futurePaymentMonths
   const totalMortgagePayments =

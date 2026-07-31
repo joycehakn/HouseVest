@@ -13,6 +13,7 @@ const inputs: PropertyInputs = {
   originalLoan: 11_980_000,
   currentLoanBalance: 10_485_197,
   mortgageDataDate: "2026-08-01",
+  mortgagePaymentDay: 15,
   totalMortgagePaymentsPaid: 2_721_992,
   mortgagePaymentMode: "actual",
   paymentEstimateAnnualRate: 2.18,
@@ -115,6 +116,22 @@ describe("mortgage calculations", () => {
       result.historicalMortgagePayments + result.futureMortgagePayments,
       6,
     )
+  })
+
+  it("counts only actual payment dates after the balance date", () => {
+    expect(calculatePropertyAnalysis({
+      ...inputs,
+      mortgageDataDate: "2026-07-31",
+      mortgagePaymentDay: 15,
+      saleDate: "2026-08-01",
+    }).futurePaymentMonths).toBe(0)
+
+    expect(calculatePropertyAnalysis({
+      ...inputs,
+      mortgageDataDate: "2026-07-31",
+      mortgagePaymentDay: 1,
+      saleDate: "2026-08-01",
+    }).futurePaymentMonths).toBe(1)
   })
 })
 

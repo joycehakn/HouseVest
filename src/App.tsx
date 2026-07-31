@@ -99,6 +99,7 @@ function App() {
     originalLoan: activeProperty.originalLoan,
     currentLoanBalance: activeProperty.currentLoanBalance,
     mortgageDataDate: activeProperty.mortgageDataDate,
+    mortgagePaymentDay: activeProperty.mortgagePaymentDay,
     totalMortgagePaymentsPaid: activeProperty.totalMortgagePaymentsPaid,
     mortgagePaymentMode: activeProperty.mortgagePaymentMode,
     paymentEstimateAnnualRate: activeProperty.paymentEstimateAnnualRate,
@@ -304,6 +305,7 @@ function App() {
         { label: '購入至出售日期', value: `${inputs.purchaseDate} → ${inputs.saleDate}` },
         { label: '期初自有資金', value: `−${nt(result.initialEquity)}` },
         { label: '貸款資料截至日', value: inputs.mortgageDataDate },
+        { label: '每月房貸扣款日', value: `每月 ${inputs.mortgagePaymentDay} 日` },
         { label: '截至日付款來源', value: result.mortgagePaymentMode === 'actual' ? '手動輸入實際總額' : '本息平均攤還公式推估' },
         { label: '截至日已付款期數', value: `${result.historicalPaidMonths} 期` },
         { label: '截至日累積付款', value: `−${nt(result.historicalMortgagePayments)}` },
@@ -653,7 +655,7 @@ function PropertyEditor({ profile, saleDate, onChange, onClose }: { profile: Pro
   const [cpiLookupStatus, setCpiLookupStatus] = useState<Record<string, { state: 'loading' | 'success' | 'error'; message: string }>>({})
   const updateText = (key: 'name' | 'address' | 'purchaseDate' | 'mortgageDataDate', value: string) =>
     onChange({ ...profile, [key]: value })
-  const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'paymentEstimateAnnualRate' | 'originalLoanTermYears' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue' | 'houseAreaPing', value: number) =>
+  const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'paymentEstimateAnnualRate' | 'originalLoanTermYears' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue' | 'houseAreaPing' | 'mortgagePaymentDay', value: number) =>
     onChange({ ...profile, [key]: value })
   const updateCost = (key: keyof PropertyProfile['acquisitionCosts'], value: number) =>
     onChange({ ...profile, acquisitionCosts: { ...profile.acquisitionCosts, [key]: value } })
@@ -859,6 +861,7 @@ function PropertyEditor({ profile, saleDate, onChange, onClose }: { profile: Pro
           <NumberInput label="原始貸款金額" value={profile.originalLoan} onChange={value => updateNumber('originalLoan', value)} />
           <NumberInput label="目前銀行貸款餘額" value={profile.currentLoanBalance} onChange={value => updateNumber('currentLoanBalance', value)} />
           <TextInput label="貸款資料截至日" type="date" value={profile.mortgageDataDate} onChange={value => updateText('mortgageDataDate', value)} required />
+          <NumberInput label="每月房貸扣款日" help="用來計算貸款資料截至日至預計出售日之間，實際會經過幾次房貸扣款日。若填31日，沒有31日的月份以月底計算。" value={profile.mortgagePaymentDay} suffix="日" min={1} max={31} onChange={value => updateNumber('mortgagePaymentDay', value)} />
           <div className="paymentMode">
             <span>累積房貸付款輸入方法</span>
             <div>
@@ -1014,8 +1017,8 @@ function TextInput({ label, value, help, type = 'text', required = false, onChan
   return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><input type={type} value={value} required={required} onChange={event => onChange(event.target.value)} /></label>
 }
 
-function NumberInput({ label, value, help, suffix = '', step = 1, onChange }: { label: string; value: number; help?: string; suffix?: string; step?: number; onChange: (value: number) => void }) {
-  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><div><input type="number" min="0" step={step} placeholder="0" value={value || ''} onChange={event => onChange(event.target.value === '' ? 0 : Number(event.target.value))} />{suffix && <em>{suffix}</em>}</div></label>
+function NumberInput({ label, value, help, suffix = '', step = 1, min = 0, max, onChange }: { label: string; value: number; help?: string; suffix?: string; step?: number; min?: number; max?: number; onChange: (value: number) => void }) {
+  return <label className="editorField"><span>{label}{help && <HelpTip text={help} />}</span><div><input type="number" min={min} max={max} step={step} placeholder="0" value={value || ''} onChange={event => onChange(event.target.value === '' ? 0 : Number(event.target.value))} />{suffix && <em>{suffix}</em>}</div></label>
 }
 
 function NullableNumberInput({ label, value, help, suffix = '', step = 1, onChange }: { label: string; value: number | null; help?: string; suffix?: string; step?: number; onChange: (value: number | null) => void }) {

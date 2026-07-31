@@ -17,7 +17,8 @@ const initial: Inputs = {
   salePrice: 17_500_000,
   saleCostsRate: 4,
   taxRate: 20,
-  holdingYears: 5,
+  purchaseDate: '2021-08-01',
+  saleDate: '2026-08-01',
 }
 
 const money = (n: number) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Math.round(n))
@@ -95,7 +96,9 @@ function App() {
         { label: '取得成本', value: nt(inputs.acquisitionCosts), operator: '+' },
         { label: '總取得成本', value: nt(result.totalCost), operator: '=' },
         { label: '扣成本與稅後出售價', value: nt(result.netSaleBeforeLoan) },
-        { label: '持有期間', value: `${inputs.holdingYears} 年` },
+        { label: '購入成交日', value: inputs.purchaseDate },
+        { label: '出售成交日', value: inputs.saleDate },
+        { label: '實際持有期間', value: `${money(result.holdingDays)} 天（${result.holdingYears.toFixed(3)} 年）` },
         { label: '房屋 CAGR', value: pct(result.cagr), operator: '=' },
       ],
       note: 'CAGR 是房屋資產本身的年化結果，不包含房貸本金、利息與每月現金流。',
@@ -106,6 +109,7 @@ function App() {
       summary: '使用逐月現金流計算：期初自有資金、每月房貸付款，以及出售月份收到的出售實拿。',
       formula: '找到月報酬率 r，使所有逐月現金流的 NPV = 0，再換算成年化 IRR',
       rows: [
+        { label: '購入至出售日期', value: `${inputs.purchaseDate} → ${inputs.saleDate}` },
         { label: '期初自有資金', value: `−${nt(result.initialEquity)}` },
         { label: '平均每月歷史付款', value: `−${nt(result.averageHistoricalMonthlyPayment)}` },
         { label: '付款期數', value: `${result.paidMonths} 期` },
@@ -156,6 +160,11 @@ function App() {
   ], [inputs])
 
   const update = (key: keyof Inputs, value: number) => setInputs(v => ({ ...v, [key]: value }))
+  const updateDate = (key: 'purchaseDate' | 'saleDate', value: string) => setInputs(current => {
+    if (key === 'purchaseDate' && value >= current.saleDate) return current
+    if (key === 'saleDate' && value <= current.purchaseDate) return current
+    return { ...current, [key]: value }
+  })
 
   return <div className="app">
     <aside>
@@ -195,9 +204,11 @@ function App() {
           <label>預估成交價 <b>NT$ {money(inputs.salePrice)}</b></label>
           <input type="range" min="16_000_000" max="20_000_000" step="100_000" value={inputs.salePrice} onChange={e => update('salePrice', Number(e.target.value))}/>
           <div className="range"><span>1,600 萬</span><span>2,000 萬</span></div>
-          <Field label="持有年數" value={inputs.holdingYears} suffix="年" onChange={v => update('holdingYears', v)} />
+          <DateField label="購入成交日" value={inputs.purchaseDate} max={inputs.saleDate} onChange={v => updateDate('purchaseDate', v)} />
+          <DateField label="出售成交日" value={inputs.saleDate} min={inputs.purchaseDate} onChange={v => updateDate('saleDate', v)} />
+          <div className="holdingPeriod"><span>自動計算持有期間</span><strong>{money(result.holdingDays)} 天・{result.holdingYears.toFixed(3)} 年</strong></div>
           <Field label="目前貸款餘額" value={inputs.currentLoanBalance} suffix="元" step={10_000} onChange={v => update('currentLoanBalance', v)} />
-          <Field label="累積已繳房貸" value={inputs.totalMortgagePaymentsPaid} suffix="元" step={10_000} onChange={v => update('totalMortgagePaymentsPaid', v)} />
+          <Field label="出售前累積房貸付款" value={inputs.totalMortgagePaymentsPaid} suffix="元" step={10_000} onChange={v => update('totalMortgagePaymentsPaid', v)} />
           <Field label="目前房貸利率" value={inputs.annualRate} suffix="%" step={0.01} onChange={v => update('annualRate', v)} />
           <Field label="剩餘貸款年限" value={inputs.remainingLoanYears} suffix="年" onChange={v => update('remainingLoanYears', v)} />
           <Field label="出售成本率" value={inputs.saleCostsRate} suffix="%" step={0.1} onChange={v => update('saleCostsRate', v)} />
@@ -241,6 +252,10 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
 
 function Field({ label, value, suffix, step = 1, onChange }: { label: string; value: number; suffix: string; step?: number; onChange: (v: number) => void }) {
   return <label className="field"><span>{label}</span><div><input type="number" value={value} step={step} onChange={e => onChange(Number(e.target.value))}/><em>{suffix}</em></div></label>
+}
+
+function DateField({ label, value, min, max, onChange }: { label: string; value: string; min?: string; max?: string; onChange: (v: string) => void }) {
+  return <label className="field dateField"><span>{label}</span><input type="date" value={value} min={min} max={max} onChange={e => onChange(e.target.value)}/></label>
 }
 
 export default App

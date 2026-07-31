@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   annualizedMonthlyIrr,
+  calculateHoldingPeriod,
   calculatePropertyAnalysis,
   mortgagePayment,
   type PropertyInputs,
@@ -17,8 +18,25 @@ const inputs: PropertyInputs = {
   salePrice: 17_500_000,
   saleCostsRate: 4,
   taxRate: 20,
-  holdingYears: 5,
+  purchaseDate: "2021-08-01",
+  saleDate: "2026-08-01",
 }
+
+describe("calculateHoldingPeriod", () => {
+  it("calculates days, payment months, and fractional years from dates", () => {
+    expect(calculateHoldingPeriod("2021-08-01", "2026-08-01")).toEqual({
+      days: 1_826,
+      months: 60,
+      years: 1_826 / 365.2425,
+    })
+  })
+
+  it("rejects a sale date that is not after the purchase date", () => {
+    expect(() =>
+      calculateHoldingPeriod("2026-08-01", "2026-08-01"),
+    ).toThrow("saleDate must be later than purchaseDate")
+  })
+})
 
 describe("mortgage calculations", () => {
   it("calculates a future payment from the current balance and assumptions", () => {

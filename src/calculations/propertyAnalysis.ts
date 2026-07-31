@@ -9,10 +9,13 @@ export type PropertyInputs = {
   salePrice: number
   saleCostsRate: number
   taxRate: number
-  holdingYears: number
+  purchaseDate: string
+  saleDate: string
 }
 
 export type PropertyAnalysis = {
+  holdingDays: number
+  holdingYears: number
   totalCost: number
   averageHistoricalMonthlyPayment: number
   futureMonthlyPayment: number
@@ -30,6 +33,29 @@ export type PropertyAnalysis = {
   leveragedIrr: number
   equity: number
   score: number
+}
+
+function parseIsoDate(value: string): number {
+  const [year, month, day] = value.split("-").map(Number)
+  return Date.UTC(year, month - 1, day)
+}
+
+export function calculateHoldingPeriod(
+  purchaseDate: string,
+  saleDate: string,
+): { days: number; months: number; years: number } {
+  const milliseconds = parseIsoDate(saleDate) - parseIsoDate(purchaseDate)
+
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) {
+    throw new Error("saleDate must be later than purchaseDate")
+  }
+
+  const days = milliseconds / 86_400_000
+  return {
+    days,
+    months: Math.max(1, Math.round(days / 30.436875)),
+    years: days / 365.2425,
+  }
 }
 
 export function mortgagePayment(
@@ -116,8 +142,12 @@ export function annualizedMonthlyIrr(cashFlows: number[]): number {
 export function calculatePropertyAnalysis(
   inputs: PropertyInputs,
 ): PropertyAnalysis {
+  const holdingPeriod = calculateHoldingPeriod(
+    inputs.purchaseDate,
+    inputs.saleDate,
+  )
   const totalCost = inputs.purchasePrice + inputs.acquisitionCosts
-  const paidMonths = Math.max(1, Math.round(inputs.holdingYears * 12))
+  const paidMonths = holdingPeriod.months
   const averageHistoricalMonthlyPayment =
     inputs.totalMortgagePaymentsPaid / paidMonths
   const futureMonthlyPayment = mortgagePayment(
@@ -138,7 +168,7 @@ export function calculatePropertyAnalysis(
   const initialEquity = totalCost - inputs.originalLoan
   const profit = netCash - initialEquity - totalMortgagePayments
   const cagr =
-    (Math.pow(netSaleBeforeLoan / totalCost, 1 / inputs.holdingYears) - 1) *
+    (Math.pow(netSaleBeforeLoan / totalCost, 1 / holdingPeriod.years) - 1) *
     100
 
   const cashFlows = [
@@ -160,6 +190,8 @@ export function calculatePropertyAnalysis(
   )
 
   return {
+    holdingDays: holdingPeriod.days,
+    holdingYears: holdingPeriod.years,
     totalCost,
     averageHistoricalMonthlyPayment,
     futureMonthlyPayment,

@@ -23,6 +23,10 @@ type TesseractModule = {
   ) => Promise<TesseractWorker>
 }
 
+type TesseractImport = Partial<TesseractModule> & {
+  default?: Partial<TesseractModule>
+}
+
 export type LocalOcrImage = { name: string; dataUrl: string }
 export type OcrProgress = {
   imageIndex: number
@@ -151,9 +155,13 @@ export async function recognizePropertyImages(
   images: LocalOcrImage[],
   onProgress: (progress: OcrProgress) => void,
 ): Promise<PropertyDocumentExtraction> {
-  const tesseract = await import(/* @vite-ignore */ TESSERACT_MODULE) as TesseractModule
+  const imported = await import(/* @vite-ignore */ TESSERACT_MODULE) as TesseractImport
+  const createWorker = imported.createWorker ?? imported.default?.createWorker
+  if (typeof createWorker !== 'function') {
+    throw new Error('免費 OCR 元件載入失敗，請重新整理後再試。')
+  }
   let currentImage = 0
-  const worker = await tesseract.createWorker(['chi_tra', 'eng'], 1, {
+  const worker = await createWorker(['chi_tra', 'eng'], 1, {
     workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/worker.min.js',
     corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0',
     langPath: 'https://tessdata.projectnaptha.com/4.0.0',

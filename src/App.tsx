@@ -62,6 +62,9 @@ const initialScenario: ScenarioInputs = {
 
 const money = (n: number) => new Intl.NumberFormat('zh-TW', { maximumFractionDigits: 0 }).format(Math.round(n))
 const pct = (n: number) => `${n.toFixed(1)}%`
+const irr = (n: number) => Number.isFinite(n) && Math.abs(n) <= 1_000
+  ? pct(n)
+  : '無法合理計算'
 const nt = (n: number) => money(n)
 const wan = (n: number) => `${new Intl.NumberFormat('zh-TW', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n / 10_000)} 萬`
 const dayAfter = (date: string) => {
@@ -393,7 +396,7 @@ function App() {
     },
     irr: {
       title: '自有資金 IRR',
-      result: Number.isFinite(result.leveragedIrr) ? pct(result.leveragedIrr) : '無法計算',
+      result: irr(result.leveragedIrr),
       summary: '使用逐月現金流計算：期初自有資金、每月房貸付款，以及出售月份收到的出售實拿。',
       formula: '找到月報酬率 r，使所有逐月現金流的 NPV = 0，再換算成年化 IRR',
       rows: [
@@ -409,7 +412,7 @@ function App() {
         { label: '未來預估付款', value: `−${nt(result.futureMortgagePayments)}` },
         { label: '出售前累積房貸付款', value: `−${nt(result.totalMortgagePayments)}` },
         { label: '出售月份回收', value: nt(result.netCash) },
-        { label: '年化 IRR', value: Number.isFinite(result.leveragedIrr) ? pct(result.leveragedIrr) : '無法計算', operator: '=' },
+        { label: '年化 IRR', value: irr(result.leveragedIrr), operator: '=' },
       ],
       note: `${result.mortgagePaymentMode === 'actual' ? '貸款資料截至日前採用手動輸入的實際總額' : `截至日前採公式推估（平均利率 ${inputs.paymentEstimateAnnualRate}%、原始年限 ${inputs.originalLoanTermYears} 年）`}；截至日後則依目前貸款餘額、目前利率與剩餘年限推估至出售日。`,
     },
@@ -485,7 +488,7 @@ function App() {
         { label: '出售實拿', value: nt(comparison.netCash) },
         { label: '稅後獲利', value: nt(comparison.profit) },
         { label: '房屋 CAGR', value: pct(comparison.cagr) },
-        { label: '自有資金 IRR', value: Number.isFinite(comparison.leveragedIrr) ? pct(comparison.leveragedIrr) : '無法計算' },
+        { label: '自有資金 IRR', value: irr(comparison.leveragedIrr) },
       ],
       note: '出售實拿已扣除出售成本、簡化稅額與貸款餘額；稅後獲利與 IRR 另納入期初自有資金、截至日房貸付款與出售前預估付款。',
     })
@@ -645,7 +648,7 @@ function App() {
             <p><span>賣房稅費</span><strong>{nt(validationCase.result.tax)}</strong>{validationStatusSelect('tax', '賣房稅費')}</p>
             <p><span>稅後淨利</span><strong>{nt(validationCase.result.profit)}</strong>{validationStatusSelect('profit', '稅後淨利')}</p>
             <p><span>CAGR</span><strong>{pct(validationCase.result.cagr)}</strong>{validationStatusSelect('cagr', 'CAGR')}</p>
-            <p><span>自有資金 IRR</span><strong>{Number.isFinite(validationCase.result.leveragedIrr) ? pct(validationCase.result.leveragedIrr) : '無法計算'}</strong>{validationStatusSelect('leveragedIrr', '自有資金 IRR')}</p>
+            <p><span>自有資金 IRR</span><strong>{irr(validationCase.result.leveragedIrr)}</strong>{validationStatusSelect('leveragedIrr', '自有資金 IRR')}</p>
           </div>
           <button type="button" onClick={refreshValidationCase}><RefreshCw size={14}/>以目前資料更新案例 A</button>
           <small>每個狀態都會立即保存。案例 A 的數字不會因後續修改而變動，除非按下更新。</small>
@@ -714,10 +717,13 @@ function App() {
               <table className="scenarioTable">
                 <thead><tr><th>投資績效</th>{comparisonItems.map(item => <th className={item.baseline ? 'baseline' : ''} key={item.key}><span>{item.label}</span><strong>{item.sublabel}</strong></th>)}</tr></thead>
                 <tbody>
-                  {comparisonMode === 'date' && <tr><th>持有期間／稅率</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{item.result.holdingYears.toFixed(2)} 年／{item.result.taxAnalysis.appliedRate === null ? '待補' : `${item.result.taxAnalysis.appliedRate}%`}</td>)}</tr>}
+                  {comparisonMode === 'date' && <>
+                    <tr><th>持有期間</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{item.result.holdingYears.toFixed(2)} 年</td>)}</tr>
+                    <tr className="taxRateRow"><th>一般稅率初估<small>須超過級距年限才適用下一稅率</small></th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}><strong>{item.result.taxAnalysis.appliedRate === null ? '待補' : `${item.result.taxAnalysis.appliedRate}%`}</strong><small>{item.result.taxAnalysis.rateReason}</small></td>)}</tr>
+                  </>}
                   <tr><th>賣房稅費初估</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{nt(item.result.tax)}</td>)}</tr>
                   <tr><th>稅後淨利</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{nt(item.result.profit)}</td>)}</tr>
-                  <tr><th>自有資金 IRR</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{Number.isFinite(item.result.leveragedIrr) ? pct(item.result.leveragedIrr) : '無法計算'}</td>)}</tr>
+                  <tr><th>自有資金 IRR</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{irr(item.result.leveragedIrr)}</td>)}</tr>
                   <tr className="scenarioActions"><th>計算依據</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}><button onClick={() => showScenarioDetail(item)}><Calculator size={13}/>查看</button></td>)}</tr>
                 </tbody>
               </table>

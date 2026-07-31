@@ -40,6 +40,7 @@ const landCityOptions = [
 
 type ScenarioInputs = {
   salePrice: number
+  houseAreaPing: number
   sellingAgencyFeeRate: number
   customSellingCosts: { id: string; name: string; amount: number; documented: boolean }[]
   saleDate: string
@@ -47,6 +48,7 @@ type ScenarioInputs = {
 
 const initialScenario: ScenarioInputs = {
   salePrice: 17_500_000,
+  houseAreaPing: 0,
   sellingAgencyFeeRate: 4,
   customSellingCosts: [],
   saleDate: '2026-08-01',
@@ -399,7 +401,7 @@ function App() {
     })
   }
 
-  const updateScenarioNumber = (key: 'salePrice' | 'sellingAgencyFeeRate', value: number) =>
+  const updateScenarioNumber = (key: 'salePrice' | 'houseAreaPing' | 'sellingAgencyFeeRate', value: number) =>
     setScenario(current => ({ ...current, [key]: value }))
   const updateSaleDate = (value: string) => setScenario(current => {
     if (value <= activeProperty.purchaseDate || value < activeProperty.mortgageDataDate) return current
@@ -576,6 +578,11 @@ function App() {
         <article className="panel controls">
           <div className="panelTitle"><div><p className="eyebrow">LIVE SCENARIO</p><h2>成交價情境</h2></div><SlidersHorizontal size={20}/></div>
           <label className="priceInput"><span>預估成交價</span><div><input aria-label="預估成交價" type="number" min="0" step="10000" placeholder="直接輸入金額" value={inputs.salePrice || ''} onChange={event => updateScenarioNumber('salePrice', event.target.value === '' ? 0 : Number(event.target.value))}/></div></label>
+          <label className="priceInput"><span>成交單價採用坪數</span><div><input aria-label="成交單價採用坪數" type="number" min="0" step="0.01" placeholder="輸入權狀或計價坪數" value={scenario.houseAreaPing || ''} onChange={event => updateScenarioNumber('houseAreaPing', event.target.value === '' ? 0 : Number(event.target.value))}/><small>坪</small></div></label>
+          <div className="unitPriceResult">
+            <span>自動換算每坪單價</span>
+            <strong>{scenario.houseAreaPing > 0 ? `${nt(inputs.salePrice / scenario.houseAreaPing)}／坪` : '請先輸入坪數'}</strong>
+          </div>
           <div className="savedFact"><span>購入成交日</span><strong>{activeProperty.purchaseDate}</strong></div>
           <DateField label="出售成交日" value={inputs.saleDate} min={activeProperty.mortgageDataDate} onChange={updateSaleDate} />
           <div className="holdingPeriod"><span>自動計算持有期間</span><strong>{money(result.holdingDays)} 天・{result.holdingYears.toFixed(3)} 年</strong></div>

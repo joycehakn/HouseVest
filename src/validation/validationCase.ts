@@ -11,12 +11,14 @@ export type ValidationScenario = {
 }
 
 export type ValidationStatus = 'confirmed' | 'estimated' | 'pending'
-export type ValidationField = 'purchasePrice' | 'acquisitionCosts' | 'salePrice' | 'tax' | 'profit' | 'cagr' | 'leveragedIrr'
+export type ValidationField = 'purchasePrice' | 'acquisitionCosts' | 'currentLoanBalance' | 'historicalMortgagePayments' | 'salePrice' | 'tax' | 'profit' | 'cagr' | 'leveragedIrr'
 export type ValidationFieldStatuses = Record<ValidationField, ValidationStatus>
 
 export const defaultValidationFieldStatuses: ValidationFieldStatuses = {
   purchasePrice: 'confirmed',
   acquisitionCosts: 'confirmed',
+  currentLoanBalance: 'confirmed',
+  historicalMortgagePayments: 'estimated',
   salePrice: 'estimated',
   tax: 'pending',
   profit: 'pending',
@@ -31,7 +33,8 @@ export type ValidationCase = {
   source: '目前已儲存資料'
   property: PropertyProfile
   scenario: ValidationScenario
-  result: Pick<PropertyAnalysis, 'tax' | 'profit' | 'netCash' | 'cagr' | 'leveragedIrr'>
+  result: Pick<PropertyAnalysis, 'tax' | 'profit' | 'netCash' | 'cagr' | 'leveragedIrr'> &
+    Partial<Pick<PropertyAnalysis, 'historicalMortgagePayments'>>
   fieldStatuses: ValidationFieldStatuses
 }
 
@@ -54,6 +57,7 @@ export function createValidationCase(
       netCash: result.netCash,
       cagr: result.cagr,
       leveragedIrr: result.leveragedIrr,
+      historicalMortgagePayments: result.historicalMortgagePayments,
     },
     fieldStatuses: {
       ...defaultValidationFieldStatuses,

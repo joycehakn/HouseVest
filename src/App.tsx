@@ -533,6 +533,8 @@ function App() {
           <div className="validationFacts">
             <p><span>購入價格</span><strong>{nt(validationCase.property.purchasePrice)}</strong>{validationStatusSelect('purchasePrice', '購入價格')}</p>
             <p><span>取得成本合計</span><strong>{nt(totalAcquisitionCosts(validationCase.property.acquisitionCosts, validationCase.property.customAcquisitionCosts))}</strong>{validationStatusSelect('acquisitionCosts', '取得成本合計')}</p>
+            <p><span>目前貸款餘額</span><strong>{nt(validationCase.property.currentLoanBalance)}</strong>{validationStatusSelect('currentLoanBalance', '目前貸款餘額')}</p>
+            <p><span>截至目前累積付款（公式推估）</span><strong>{nt(validationCase.result.historicalMortgagePayments ?? result.historicalMortgagePayments)}</strong>{validationStatusSelect('historicalMortgagePayments', '截至目前累積付款')}</p>
             <p><span>案例成交價</span><strong>{nt(validationCase.scenario.salePrice)}</strong>{validationStatusSelect('salePrice', '案例成交價')}</p>
             <p><span>賣房稅費</span><strong>{nt(validationCase.result.tax)}</strong>{validationStatusSelect('tax', '賣房稅費')}</p>
             <p><span>稅後淨利</span><strong>{nt(validationCase.result.profit)}</strong>{validationStatusSelect('profit', '稅後淨利')}</p>

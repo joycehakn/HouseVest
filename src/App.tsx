@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, LabelList, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Building2, Calculator, Camera, CircleHelp, HousePlus, Landmark, LineChart as LineChartIcon, Pencil, PiggyBank, Plus, SlidersHorizontal, Sparkles, Trash2, X } from 'lucide-react'
 import {
   calculatePropertyAnalysis,
@@ -366,17 +366,6 @@ function App() {
     })
   }, [details])
 
-  const chart = useMemo(() => [
-    {
-      year: '購入時',
-      equity: Math.max(0, inputs.purchasePrice - inputs.originalLoan) / 10_000,
-    },
-    {
-      year: '目前',
-      equity: Math.max(0, inputs.salePrice - inputs.currentLoanBalance) / 10_000,
-    },
-  ], [inputs])
-
   const showScenarioDetail = (scenarioResult: typeof scenarioComparisons[number]) => {
     const comparison = scenarioResult.result
     setDetail({
@@ -590,10 +579,6 @@ function App() {
         </article>
       </section>
 
-      <section className="panel chartPanel">
-        <div className="panelTitle"><div><p className="eyebrow">EQUITY CHANGE</p><h2>購入時與目前房屋淨值</h2></div></div>
-        <div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="year"/><YAxis tickFormatter={v => `${v}萬`}/><Tooltip formatter={(v) => [`${money(Number(v))} 萬`, '淨資產']}/><Area type="monotone" dataKey="equity" stroke="currentColor" fill="currentColor" fillOpacity={0.12}/></AreaChart></ResponsiveContainer></div>
-      </section>
       {detail && <CalculationDrawer detail={detail} onClose={() => setDetail(null)} />}
       {editingProperty && <PropertyEditor profile={editingProperty} saleDate={scenario.saleDate} onChange={updateAndPersistProfile} onClose={() => setEditingProperty(null)} />}
     </main>

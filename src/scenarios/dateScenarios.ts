@@ -17,12 +17,6 @@ export function addMonths(date: string, months: number): string {
 export const addYears = (date: string, years: number): string =>
   addMonths(date, years * 12)
 
-const dayAfter = (date: string): string => {
-  const value = new Date(`${date}T00:00:00Z`)
-  value.setUTCDate(value.getUTCDate() + 1)
-  return value.toISOString().slice(0, 10)
-}
-
 export type DateScenarioComparison = {
   key: string
   months: number
@@ -35,26 +29,11 @@ export type DateScenarioComparison = {
 export function createDateScenarioComparisons(
   inputs: PropertyInputs,
 ): DateScenarioComparison[] {
-  const ownershipSixYearDate = addYears(inputs.purchaseDate, 6)
-  const registrationSixYearDate = inputs.taxProfile.householdRegistrationDate
-    ? addYears(inputs.taxProfile.householdRegistrationDate, 6)
-    : null
-  const sixYearDate = registrationSixYearDate && registrationSixYearDate > ownershipSixYearDate
-    ? registrationSixYearDate
-    : ownershipSixYearDate
-  const tenYearRateDate = dayAfter(addYears(inputs.purchaseDate, 10))
-  const halfYearDate = addMonths(inputs.saleDate, 6)
-  const threeYearDate = addMonths(inputs.saleDate, 36)
   const steps = [
     { key: 'base', months: 0, label: '基準日', adjustment: '基準出售日', saleDate: inputs.saleDate },
-    sixYearDate > halfYearDate
-      ? { key: 'six-years', months: 6, label: inputs.taxProfile.householdRegistrationDate ? '自住條件滿 6 年' : '持有滿 6 年', adjustment: inputs.taxProfile.householdRegistrationDate ? '持有與設籍年限均滿 6 年' : '仍須補設籍日期與居住條件', saleDate: sixYearDate }
-      : { key: 'six-months', months: 6, label: '半年後', adjustment: '基準日後 6 個月', saleDate: halfYearDate },
-    { key: 'one-year', months: 12, label: '1 年後', adjustment: '基準日後 12 個月', saleDate: addMonths(inputs.saleDate, 12) },
-    { key: 'two-years', months: 24, label: '2 年後', adjustment: '基準日後 24 個月', saleDate: addMonths(inputs.saleDate, 24) },
-    tenYearRateDate > threeYearDate
-      ? { key: 'over-ten-years', months: 36, label: '持有超過 10 年', adjustment: '15% 一般稅率門檻', saleDate: tenYearRateDate }
-      : { key: 'three-years', months: 36, label: '3 年後', adjustment: '基準日後 36 個月', saleDate: threeYearDate },
+    { key: 'six-months', months: 6, label: '基準日＋半年', adjustment: '基準日後 6 個月', saleDate: addMonths(inputs.saleDate, 6) },
+    { key: 'one-year', months: 12, label: '基準日＋1年', adjustment: '基準日後 12 個月', saleDate: addMonths(inputs.saleDate, 12) },
+    { key: 'two-years', months: 24, label: '基準日＋2年', adjustment: '基準日後 24 個月', saleDate: addMonths(inputs.saleDate, 24) },
   ]
 
   return steps.map(item => {

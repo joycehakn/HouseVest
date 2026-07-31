@@ -208,21 +208,29 @@ function App() {
     tax: item.result.tax,
     profit: item.result.profit,
   })), [comparisonItems])
-  const taxThresholds = useMemo(() => [
-    { years: 2, strict: true, label: '持有超過 2 年', note: '房地合一稅 2.0 一般稅率可能由 45% 降至 35%' },
-    { years: 5, strict: true, label: '持有超過 5 年', note: '一般稅率可能由 35% 降至 20%' },
-    { years: 6, strict: false, label: '持有滿 6 年', note: '可能具備自住房地優惠的年限門檻，仍須符合設籍與使用條件' },
-    { years: 10, strict: true, label: '持有超過 10 年', note: '一般稅率可能由 20% 降至 15%' },
-  ].map(item => {
-    const ownershipAnniversary = addYears(inputs.purchaseDate, item.years)
-    const registrationAnniversary = item.years === 6 && inputs.taxProfile.householdRegistrationDate
+  const dateMilestones = useMemo(() => {
+    const holdingFiveYears = addYears(inputs.purchaseDate, 5)
+    const ownershipSixYears = addYears(inputs.purchaseDate, 6)
+    const registrationSixYears = inputs.taxProfile.householdRegistrationDate
       ? addYears(inputs.taxProfile.householdRegistrationDate, 6)
       : null
-    const anniversary = registrationAnniversary && registrationAnniversary > ownershipAnniversary
-      ? registrationAnniversary
-      : ownershipAnniversary
-    return { ...item, date: item.strict ? dayAfter(anniversary) : anniversary }
-  }), [inputs.purchaseDate])
+    return [
+      {
+        label: '持有滿 5 年',
+        date: holdingFiveYears,
+        note: `一般稅率須於 ${dayAfter(holdingFiveYears)} 起視為超過 5 年`,
+      },
+      {
+        label: '持有並設籍滿 6 年',
+        date: registrationSixYears
+          ? (registrationSixYears > ownershipSixYears ? registrationSixYears : ownershipSixYears)
+          : null,
+        note: registrationSixYears
+          ? '仍須確認連續實住、未出租營業及家庭未重複使用優惠'
+          : '待輸入設籍日期後計算',
+      },
+    ]
+  }, [inputs.purchaseDate, inputs.taxProfile.householdRegistrationDate])
 
   const details = useMemo<Record<string, CalculationDetail>>(() => ({
     marketValue: {
@@ -615,15 +623,15 @@ function App() {
 
       <section className="grid">
         <article className="panel performance">
-          <div className="panelTitle"><div><p className="eyebrow">SCENARIO COMPARISON</p><h2>{comparisonMode === 'price' ? '五種成交價情境比較' : '五種成交日期情境比較'}</h2></div><Sparkles size={20}/></div>
+          <div className="panelTitle"><div><p className="eyebrow">SCENARIO COMPARISON</p><h2>{comparisonMode === 'price' ? '五種成交價情境比較' : '成交日期情境比較'}</h2></div><Sparkles size={20}/></div>
           <div className="comparisonMode" role="group" aria-label="情境比較模式"><button className={comparisonMode === 'price' ? 'active' : ''} onClick={() => setComparisonMode('price')}>成交價</button><button className={comparisonMode === 'date' ? 'active' : ''} onClick={() => setComparisonMode('date')}>成交日期</button></div>
           <p className="comparisonSummary">{comparisonMode === 'price'
             ? `固定出售日 ${inputs.saleDate}，以 ${nt(inputs.salePrice)} 為基準比較上下 50 萬與 100 萬。`
-            : `固定成交價 ${nt(inputs.salePrice)}，比較基準出售日與半年、1 年、2 年、3 年後的結果。`}</p>
-          {comparisonMode === 'date' && <div className="taxThresholds"><strong>稅率與資格臨界點</strong>{taxThresholds.map(item => <p className={item.date > inputs.saleDate ? 'upcoming' : 'passed'} key={item.years}><span>{item.date}・{item.label}</span><small>{item.note}</small></p>)}</div>}
+            : `固定成交價 ${nt(inputs.salePrice)}，比較基準日、半年後、1 年後與2 年後。`}</p>
           <div className="scenarioVisuals">
             <section className="scenarioChart">
               <h3>稅金與稅後淨利</h3>
+              {comparisonMode === 'date' && <div className="dateMilestones" aria-label="持有與設籍法規時間點">{dateMilestones.map(item => <div key={item.label}><span>{item.label}</span><strong>{item.date ?? '待輸入設籍日'}</strong><small>{item.note}</small></div>)}</div>}
               <ResponsiveContainer width="100%" height={330}>
                 <BarChart data={scenarioChartData} margin={{ top: 32, right: 18, left: 5, bottom: 5 }} barCategoryGap="22%">
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />

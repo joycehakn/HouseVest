@@ -586,6 +586,8 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
         officialCityCode: '',
         officialSectionCode: '',
         officialLandNumber: '',
+        previousTransferDateMode: 'purchase-date',
+        previousTransferYearMonth: '',
       },
     ],
   })
@@ -794,6 +796,16 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
                     {parcel.officialLookupAt && <small>上次查詢：{new Date(parcel.officialLookupAt).toLocaleString('zh-TW')}</small>}
                   </div>
                   <NullableNumberInput label="本次公告／申報現值（每平方公尺）" help="填本次移轉採用的土地公告現值或經核定的申報移轉現值單價。" value={parcel.currentDeclaredValuePerSquareMeter} onChange={value => updateLandParcel(parcel.id, { currentDeclaredValuePerSquareMeter: value })} />
+                  <div className="transferDateMode">
+                    <span>前次移轉年月輸入方式</span>
+                    <div>
+                      <button type="button" className={(parcel.previousTransferDateMode ?? 'purchase-date') === 'purchase-date' ? 'active' : ''} onClick={() => updateLandParcel(parcel.id, { previousTransferDateMode: 'purchase-date' })}>帶入購入成交日</button>
+                      <button type="button" className={parcel.previousTransferDateMode === 'manual' ? 'active' : ''} onClick={() => updateLandParcel(parcel.id, { previousTransferDateMode: 'manual' })}>手動輸入</button>
+                    </div>
+                  </div>
+                  {(parcel.previousTransferDateMode ?? 'purchase-date') === 'purchase-date'
+                    ? <div className="savedFact"><span>目前採用年月</span><strong>{profile.purchaseDate.slice(0, 7) || '尚未設定購入成交日'}</strong></div>
+                    : <TextInput label="前次移轉年月" help="請依土地謄本、土地增值稅繳款書或免稅證明書記載的年月輸入。" type="month" value={parcel.previousTransferYearMonth ?? ''} onChange={value => updateLandParcel(parcel.id, { previousTransferYearMonth: value })} />}
                   <NullableNumberInput label="原規定地價或前次移轉現值（每平方公尺）" help="可從土地謄本、前次移轉資料或地方稅捐機關取得。" value={parcel.previousDeclaredValuePerSquareMeter} onChange={value => updateLandParcel(parcel.id, { previousDeclaredValuePerSquareMeter: value })} />
                   <NullableNumberInput label="稅務專用物價指數" help="以百分比輸入，例如120代表120%；請使用財政部試算所連結的稅務專用消費者物價總指數。" value={parcel.cpiAdjustmentPercent} suffix="%" step={0.01} onChange={value => updateLandParcel(parcel.id, { cpiAdjustmentPercent: value })} />
                   <NullableNumberInput label="土地宗地面積" help="填土地登記謄本標示的整筆宗地面積，再由下方持分換算你出售的部分。" value={parcel.areaSquareMeters} suffix="㎡" step={0.01} onChange={value => updateLandParcel(parcel.id, { areaSquareMeters: value })} />

@@ -16,6 +16,8 @@ export type LandPriceIncrementParcel = {
   officialLandNumber?: string
   officialLookupAt?: string
   officialProvider?: string
+  previousTransferDateMode?: "purchase-date" | "manual"
+  previousTransferYearMonth?: string
 }
 
 export type TaiwanPropertyTaxProfile = {

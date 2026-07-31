@@ -74,4 +74,28 @@ describe("property profiles", () => {
     expect(loadPropertyDatabase(storage).properties[0].customAcquisitionCosts)
       .toEqual([])
   })
+
+  it("migrates saved land parcels to use the purchase date by default", () => {
+    const legacy = createDefaultDatabase()
+    legacy.properties[0].taxProfile.landPriceIncrementParcels = [{
+      id: "parcel-1",
+      name: "測試地號",
+      currentDeclaredValuePerSquareMeter: null,
+      previousDeclaredValuePerSquareMeter: null,
+      cpiAdjustmentPercent: null,
+      areaSquareMeters: null,
+      ownershipNumerator: 1,
+      ownershipDenominator: 1,
+      improvementCosts: 0,
+    }]
+    const storage = { getItem: () => JSON.stringify(legacy) }
+
+    expect(
+      loadPropertyDatabase(storage).properties[0].taxProfile
+        .landPriceIncrementParcels[0],
+    ).toMatchObject({
+      previousTransferDateMode: "purchase-date",
+      previousTransferYearMonth: "",
+    })
+  })
 })

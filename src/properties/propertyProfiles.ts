@@ -161,7 +161,15 @@ function migrateProperty(profile: PropertyProfile): PropertyProfile {
       ...defaultProperty.taxProfile,
       ...(profile.taxProfile ?? {}),
       landPriceIncrementParcels:
-        profile.taxProfile?.landPriceIncrementParcels ?? [],
+        (profile.taxProfile?.landPriceIncrementParcels ?? []).map(parcel => ({
+          ...parcel,
+          previousTransferDateMode:
+            parcel.previousTransferDateMode === "manual"
+              ? "manual" as const
+              : "purchase-date" as const,
+          previousTransferYearMonth:
+            parcel.previousTransferYearMonth ?? "",
+        })),
     },
   }
 }

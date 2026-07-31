@@ -1,23 +1,31 @@
 import { useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Building2, Calculator, Landmark, LineChart, PiggyBank, SlidersHorizontal, Sparkles, X } from 'lucide-react'
+import { Building2, Calculator, HousePlus, Landmark, LineChart, Pencil, PiggyBank, SlidersHorizontal, Sparkles, X } from 'lucide-react'
 import {
   calculatePropertyAnalysis,
   type PropertyInputs as Inputs,
 } from './calculations/propertyAnalysis'
+import {
+  defaultProperty,
+  loadPropertyDatabase,
+  savePropertyDatabase,
+  totalAcquisitionCosts,
+  type PropertyDatabase,
+  type PropertyProfile,
+} from './properties/propertyProfiles'
 
-const initial: Inputs = {
-  purchasePrice: 14_100_000,
-  acquisitionCosts: 230_867,
-  originalLoan: 11_980_000,
-  currentLoanBalance: 10_485_197,
-  totalMortgagePaymentsPaid: 2_721_992,
-  annualRate: 2.18,
-  remainingLoanYears: 25,
+type ScenarioInputs = {
+  salePrice: number
+  saleCostsRate: number
+  taxRate: number
+  saleDate: string
+}
+
+const initialScenario: ScenarioInputs = {
   salePrice: 17_500_000,
   saleCostsRate: 4,
   taxRate: 20,
-  purchaseDate: '2021-08-01',
   saleDate: '2026-08-01',
 }
 
@@ -35,8 +43,30 @@ type CalculationDetail = {
 }
 
 function App() {
-  const [inputs, setInputs] = useState(initial)
+  const [database, setDatabase] = useState<PropertyDatabase>(() =>
+    loadPropertyDatabase(window.localStorage),
+  )
+  const activeProperty =
+    database.properties.find(property => property.id === database.activePropertyId) ??
+    database.properties[0] ??
+    defaultProperty
+  const [scenario, setScenario] = useState<ScenarioInputs>(() => ({
+    ...initialScenario,
+    salePrice: activeProperty.currentMarketValue,
+  }))
+  const [editingProperty, setEditingProperty] = useState<PropertyProfile | null>(null)
   const [detail, setDetail] = useState<CalculationDetail | null>(null)
+  const inputs = useMemo<Inputs>(() => ({
+    purchasePrice: activeProperty.purchasePrice,
+    acquisitionCosts: totalAcquisitionCosts(activeProperty.acquisitionCosts),
+    originalLoan: activeProperty.originalLoan,
+    currentLoanBalance: activeProperty.currentLoanBalance,
+    totalMortgagePaymentsPaid: activeProperty.totalMortgagePaymentsPaid,
+    annualRate: activeProperty.annualRate,
+    remainingLoanYears: activeProperty.remainingLoanYears,
+    purchaseDate: activeProperty.purchaseDate,
+    ...scenario,
+  }), [activeProperty, scenario])
   const result = useMemo(() => calculatePropertyAnalysis(inputs), [inputs])
 
   const details = useMemo<Record<string, CalculationDetail>>(() => ({
@@ -159,12 +189,52 @@ function App() {
     },
   ], [inputs])
 
-  const update = (key: keyof Inputs, value: number) => setInputs(v => ({ ...v, [key]: value }))
-  const updateDate = (key: 'purchaseDate' | 'saleDate', value: string) => setInputs(current => {
-    if (key === 'purchaseDate' && value >= current.saleDate) return current
-    if (key === 'saleDate' && value <= current.purchaseDate) return current
-    return { ...current, [key]: value }
+  const updateScenarioNumber = (key: 'salePrice' | 'saleCostsRate' | 'taxRate', value: number) =>
+    setScenario(current => ({ ...current, [key]: value }))
+  const updateSaleDate = (value: string) => setScenario(current => {
+    if (value <= activeProperty.purchaseDate) return current
+    return { ...current, saleDate: value }
   })
+  const storeDatabase = (nextDatabase: PropertyDatabase) => {
+    setDatabase(nextDatabase)
+    savePropertyDatabase(window.localStorage, nextDatabase)
+  }
+  const selectProperty = (propertyId: string) => {
+    const selected = database.properties.find(property => property.id === propertyId)
+    if (!selected) return
+    storeDatabase({ ...database, activePropertyId: propertyId })
+    setScenario(current => ({ ...current, salePrice: selected.currentMarketValue }))
+  }
+  const createProperty = () => {
+    setEditingProperty({
+      ...defaultProperty,
+      id: crypto.randomUUID(),
+      name: `房子 ${database.properties.length + 1}`,
+      address: '',
+      acquisitionCosts: {
+        deedTax: 0,
+        stampTax: 0,
+        registrationFees: 0,
+        agencyFee: 0,
+        legalFee: 0,
+        otherCosts: 0,
+      },
+      purchasePrice: 0,
+      originalLoan: 0,
+      currentLoanBalance: 0,
+      totalMortgagePaymentsPaid: 0,
+      currentMarketValue: 0,
+    })
+  }
+  const saveProfile = (profile: PropertyProfile) => {
+    const exists = database.properties.some(property => property.id === profile.id)
+    const properties = exists
+      ? database.properties.map(property => property.id === profile.id ? profile : property)
+      : [...database.properties, profile]
+    storeDatabase({ activePropertyId: profile.id, properties })
+    setScenario(current => ({ ...current, salePrice: profile.currentMarketValue }))
+    setEditingProperty(null)
+  }
 
   return <div className="app">
     <aside>
@@ -179,7 +249,11 @@ function App() {
     </aside>
 
     <main>
-      <header><div><p className="eyebrow">MY PROPERTY</p><h1>板橋新府路資產儀表板</h1><p>用同一組數據理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>
+      <section className="propertyBar">
+        <label><span>目前房屋</span><select value={activeProperty.id} onChange={event => selectProperty(event.target.value)}>{database.properties.map(property => <option value={property.id} key={property.id}>{property.name}</option>)}</select></label>
+        <div><button onClick={() => setEditingProperty(activeProperty)}><Pencil size={15}/>編輯基本資料</button><button onClick={createProperty}><HousePlus size={16}/>新增房屋</button></div>
+      </section>
+      <header><div><p className="eyebrow">MY PROPERTY</p><h1>{activeProperty.name}資產儀表板</h1><p>{activeProperty.address || '尚未設定地址'}・用同一組已儲存資料理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>
 
       <section className="metrics">
         <Card label="預估市值" value={nt(inputs.salePrice)} note="可用滑桿調整" onClick={() => setDetail(details.marketValue)} />
@@ -202,17 +276,13 @@ function App() {
         <article className="panel controls">
           <div className="panelTitle"><div><p className="eyebrow">LIVE SCENARIO</p><h2>成交價情境</h2></div><SlidersHorizontal size={20}/></div>
           <label>預估成交價 <b>NT$ {money(inputs.salePrice)}</b></label>
-          <input type="range" min="16_000_000" max="20_000_000" step="100_000" value={inputs.salePrice} onChange={e => update('salePrice', Number(e.target.value))}/>
-          <div className="range"><span>1,600 萬</span><span>2,000 萬</span></div>
-          <DateField label="購入成交日" value={inputs.purchaseDate} max={inputs.saleDate} onChange={v => updateDate('purchaseDate', v)} />
-          <DateField label="出售成交日" value={inputs.saleDate} min={inputs.purchaseDate} onChange={v => updateDate('saleDate', v)} />
+          <input type="range" min="1_000_000" max="50_000_000" step="100_000" value={inputs.salePrice} onChange={e => updateScenarioNumber('salePrice', Number(e.target.value))}/>
+          <div className="range"><span>100 萬</span><span>5,000 萬</span></div>
+          <div className="savedFact"><span>購入成交日</span><strong>{activeProperty.purchaseDate}</strong></div>
+          <DateField label="出售成交日" value={inputs.saleDate} min={inputs.purchaseDate} onChange={updateSaleDate} />
           <div className="holdingPeriod"><span>自動計算持有期間</span><strong>{money(result.holdingDays)} 天・{result.holdingYears.toFixed(3)} 年</strong></div>
-          <Field label="目前貸款餘額" value={inputs.currentLoanBalance} suffix="元" step={10_000} onChange={v => update('currentLoanBalance', v)} />
-          <Field label="出售前累積房貸付款" value={inputs.totalMortgagePaymentsPaid} suffix="元" step={10_000} onChange={v => update('totalMortgagePaymentsPaid', v)} />
-          <Field label="目前房貸利率" value={inputs.annualRate} suffix="%" step={0.01} onChange={v => update('annualRate', v)} />
-          <Field label="剩餘貸款年限" value={inputs.remainingLoanYears} suffix="年" onChange={v => update('remainingLoanYears', v)} />
-          <Field label="出售成本率" value={inputs.saleCostsRate} suffix="%" step={0.1} onChange={v => update('saleCostsRate', v)} />
-          <Field label="房地合一稅率" value={inputs.taxRate} suffix="%" step={1} onChange={v => update('taxRate', v)} />
+          <Field label="出售成本率" value={inputs.saleCostsRate} suffix="%" step={0.1} onChange={v => updateScenarioNumber('saleCostsRate', v)} />
+          <Field label="房地合一稅率" value={inputs.taxRate} suffix="%" step={1} onChange={v => updateScenarioNumber('taxRate', v)} />
         </article>
       </section>
 
@@ -221,6 +291,7 @@ function App() {
         <div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="year"/><YAxis tickFormatter={v => `${v}萬`}/><Tooltip formatter={(v) => [`${money(Number(v))} 萬`, '淨資產']}/><Area type="monotone" dataKey="equity" stroke="currentColor" fill="currentColor" fillOpacity={0.12}/></AreaChart></ResponsiveContainer></div>
       </section>
       {detail && <CalculationDrawer detail={detail} onClose={() => setDetail(null)} />}
+      {editingProperty && <PropertyEditor profile={editingProperty} onChange={setEditingProperty} onSave={saveProfile} onClose={() => setEditingProperty(null)} />}
     </main>
   </div>
 }
@@ -248,6 +319,62 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
       {detail.note && <div className="caveat"><b>範圍與限制</b><p>{detail.note}</p></div>}
     </aside>
   </div>
+}
+
+function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: PropertyProfile; onChange: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
+  const updateText = (key: 'name' | 'address' | 'purchaseDate', value: string) =>
+    onChange({ ...profile, [key]: value })
+  const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue', value: number) =>
+    onChange({ ...profile, [key]: value })
+  const updateCost = (key: keyof PropertyProfile['acquisitionCosts'], value: number) =>
+    onChange({ ...profile, acquisitionCosts: { ...profile.acquisitionCosts, [key]: value } })
+  const acquisitionCostTotal = totalAcquisitionCosts(profile.acquisitionCosts)
+
+  return <div className="drawerBackdrop" role="presentation" onMouseDown={onClose}>
+    <aside className="drawer propertyEditor" role="dialog" aria-modal="true" aria-label="房屋基本資料" onMouseDown={event => event.stopPropagation()}>
+      <div className="drawerHeader"><div><p className="eyebrow">PROPERTY DATABASE</p><h2>房屋基本資料</h2></div><button aria-label="關閉房屋基本資料" onClick={onClose}><X size={20}/></button></div>
+      <p className="drawerSummary">儲存後，Dashboard、出售分析、CAGR 與 IRR 都會共用這份資料。</p>
+      <form onSubmit={event => { event.preventDefault(); onSave(profile) }}>
+        <EditorSection title="識別資料">
+          <TextInput label="房屋名稱" value={profile.name} onChange={value => updateText('name', value)} required />
+          <TextInput label="地址或備註" value={profile.address} onChange={value => updateText('address', value)} />
+          <TextInput label="購入成交日" type="date" value={profile.purchaseDate} onChange={value => updateText('purchaseDate', value)} required />
+          <NumberInput label="目前預估市值" value={profile.currentMarketValue} onChange={value => updateNumber('currentMarketValue', value)} />
+        </EditorSection>
+        <EditorSection title="購入價格與相關成本">
+          <NumberInput label="購入價格" value={profile.purchasePrice} onChange={value => updateNumber('purchasePrice', value)} />
+          <NumberInput label="契稅" value={profile.acquisitionCosts.deedTax} onChange={value => updateCost('deedTax', value)} />
+          <NumberInput label="印花稅" value={profile.acquisitionCosts.stampTax} onChange={value => updateCost('stampTax', value)} />
+          <NumberInput label="登記與規費" value={profile.acquisitionCosts.registrationFees} onChange={value => updateCost('registrationFees', value)} />
+          <NumberInput label="購入仲介費" value={profile.acquisitionCosts.agencyFee} onChange={value => updateCost('agencyFee', value)} />
+          <NumberInput label="代書費" value={profile.acquisitionCosts.legalFee} onChange={value => updateCost('legalFee', value)} />
+          <NumberInput label="其他取得成本" value={profile.acquisitionCosts.otherCosts} onChange={value => updateCost('otherCosts', value)} />
+          <div className="editorTotal"><span>購入相關成本合計</span><strong>{nt(acquisitionCostTotal)}</strong></div>
+        </EditorSection>
+        <EditorSection title="貸款資料">
+          <NumberInput label="原始貸款金額" value={profile.originalLoan} onChange={value => updateNumber('originalLoan', value)} />
+          <NumberInput label="目前銀行貸款餘額" value={profile.currentLoanBalance} onChange={value => updateNumber('currentLoanBalance', value)} />
+          <NumberInput label="出售前累積房貸付款" value={profile.totalMortgagePaymentsPaid} onChange={value => updateNumber('totalMortgagePaymentsPaid', value)} />
+          <NumberInput label="目前房貸利率" value={profile.annualRate} step={0.01} suffix="%" onChange={value => updateNumber('annualRate', value)} />
+          <NumberInput label="剩餘貸款年限" value={profile.remainingLoanYears} suffix="年" onChange={value => updateNumber('remainingLoanYears', value)} />
+        </EditorSection>
+        <div className="storageNote">資料只儲存在這台裝置的此瀏覽器中，不會上傳到伺服器。</div>
+        <button className="saveProperty" type="submit">儲存並套用</button>
+      </form>
+    </aside>
+  </div>
+}
+
+function EditorSection({ title, children }: { title: string; children: ReactNode }) {
+  return <section className="editorSection"><h3>{title}</h3>{children}</section>
+}
+
+function TextInput({ label, value, type = 'text', required = false, onChange }: { label: string; value: string; type?: string; required?: boolean; onChange: (value: string) => void }) {
+  return <label className="editorField"><span>{label}</span><input type={type} value={value} required={required} onChange={event => onChange(event.target.value)} /></label>
+}
+
+function NumberInput({ label, value, suffix = '元', step = 1, onChange }: { label: string; value: number; suffix?: string; step?: number; onChange: (value: number) => void }) {
+  return <label className="editorField"><span>{label}</span><div><input type="number" min="0" step={step} value={value} onChange={event => onChange(Number(event.target.value))} /><em>{suffix}</em></div></label>
 }
 
 function Field({ label, value, suffix, step = 1, onChange }: { label: string; value: number; suffix: string; step?: number; onChange: (v: number) => void }) {

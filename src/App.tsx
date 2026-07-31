@@ -22,7 +22,6 @@ type ScenarioInputs = {
   salePrice: number
   sellingAgencyFeeRate: number
   customSellingCosts: { id: string; name: string; amount: number }[]
-  taxRate: number
   saleDate: string
 }
 
@@ -30,7 +29,6 @@ const initialScenario: ScenarioInputs = {
   salePrice: 17_500_000,
   sellingAgencyFeeRate: 4,
   customSellingCosts: [],
-  taxRate: 20,
   saleDate: '2026-08-01',
 }
 
@@ -88,7 +86,7 @@ function App() {
       (total, cost) => total + cost.amount,
       0,
     ),
-    taxRate: scenario.taxRate,
+    taxProfile: activeProperty.taxProfile,
     saleDate: scenario.saleDate,
   }), [activeProperty, scenario])
   const result = useMemo(() => calculatePropertyAnalysis(inputs), [inputs])
@@ -150,28 +148,36 @@ function App() {
         { label: '預估成交價', value: nt(inputs.salePrice) },
         { label: `出售仲介費（${inputs.sellingAgencyFeeRate}%）`, value: nt(result.sellingAgencyFee), operator: '−' },
         { label: '其他出售成本', value: nt(result.otherSellingCosts), operator: '−' },
-        { label: `簡化稅額（${inputs.taxRate}%）`, value: nt(result.tax), operator: '−' },
+        { label: '房地交易所得稅', value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '−' },
+        { label: '土地增值稅', value: nt(result.taxAnalysis.landValueIncrementTax), operator: '−' },
         { label: '貸款餘額', value: nt(result.balance), operator: '−' },
         { label: '出售實拿', value: nt(result.netCash), operator: '=' },
       ],
-      note: `目前稅額 = max(售價 − 購入價 − 取得成本 − 出售成本, 0) × 假設稅率。尚未納入土地漲價總數額、自住優惠、可扣除費用認定等正式稅務規則。課稅所得目前為 ${nt(result.taxableGain)}。`,
+      note: result.taxAnalysis.complete ? result.taxAnalysis.rateReason : `尚缺：${result.taxAnalysis.missingData.join('、')}。目前結果僅供試算。`,
     },
     transactionTax: {
       title: '房地交易所得稅初估',
       result: nt(result.tax),
-      summary: '先把目前已知的成交價、取得成本與出售費用攤開，顯示現階段的所得稅初估。這還不是可申報的正式稅額。',
-      formula: '初估稅額 = max(成交價 − 購入價 − 取得成本 − 出售成本, 0) × 暫用稅率',
+      summary: `${result.taxAnalysis.regimeLabel}；${result.taxAnalysis.rateReason}。`,
+      formula: '課稅所得 = 交易所得 − 前3年交易損失 − 土地漲價總數額；總稅費 = 房地交易所得稅 + 土地增值稅',
       rows: [
         { label: '預估成交價', value: nt(inputs.salePrice) },
         { label: '購入價格', value: nt(inputs.purchasePrice), operator: '−' },
         { label: '可辨識取得成本', value: nt(inputs.acquisitionCosts), operator: '−' },
-        { label: '出售仲介費', value: nt(result.sellingAgencyFee), operator: '−' },
-        { label: '其他出售成本', value: nt(result.otherSellingCosts), operator: '−' },
-        { label: '目前初估課稅所得', value: nt(result.taxableGain), operator: '=' },
-        { label: `暫用稅率（${inputs.taxRate}%）`, value: nt(result.tax), operator: '×' },
-        { label: '房地交易所得稅初估', value: nt(result.tax), operator: '=' },
+        { label: `稅法認列出售費用（${inputs.taxProfile.sellingExpenseMethod === 'documented' ? '憑證' : '法定推計'}）`, value: nt(result.taxAnalysis.recognizedSellingExpenses), operator: '−' },
+        { label: '交易所得', value: nt(result.taxAnalysis.transactionIncome), operator: '=' },
+        { label: '前3年房地交易損失', value: nt(inputs.taxProfile.priorThreeYearTransactionLoss), operator: '−' },
+        { label: '土地漲價總數額', value: inputs.taxProfile.landPriceIncrementTotal === null ? '尚未填寫' : nt(inputs.taxProfile.landPriceIncrementTotal), operator: '−' },
+        { label: '課稅所得', value: nt(result.taxAnalysis.taxableIncome), operator: '=' },
+        ...(result.taxAnalysis.selfUseQualified ? [{ label: '自住房地免稅額', value: nt(result.taxAnalysis.selfUseExemption), operator: '−' }] : []),
+        { label: `適用稅率 ${result.taxAnalysis.appliedRate ?? '—'}%`, value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '×' },
+        { label: '房地交易所得稅', value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '=' },
+        { label: '土地增值稅', value: inputs.taxProfile.landValueIncrementTax === null ? '尚未填寫' : nt(result.taxAnalysis.landValueIncrementTax), operator: '+' },
+        { label: '賣房稅費合計', value: nt(result.tax), operator: '=' },
       ],
-      note: '尚缺：土地漲價總數額、交易損失扣除、自住房地資格、新舊制判定及特殊交易類型。土地增值稅是另一項地方稅，也尚未計入；因此這個數字不能直接作為申報或簽約依據。',
+      note: result.taxAnalysis.complete
+        ? `資料已齊全；仍應以稽徵機關核定為準。${result.taxAnalysis.warnings.join(' ')}`
+        : `尚缺：${result.taxAnalysis.missingData.join('、')}。${result.taxAnalysis.warnings.join(' ')}`,
     },
     cagr: {
       title: '房屋 CAGR',
@@ -275,7 +281,7 @@ function App() {
     })
   }
 
-  const updateScenarioNumber = (key: 'salePrice' | 'sellingAgencyFeeRate' | 'taxRate', value: number) =>
+  const updateScenarioNumber = (key: 'salePrice' | 'sellingAgencyFeeRate', value: number) =>
     setScenario(current => ({ ...current, [key]: value }))
   const updateSaleDate = (value: string) => setScenario(current => {
     if (value <= activeProperty.purchaseDate || value < activeProperty.mortgageDataDate) return current
@@ -378,7 +384,7 @@ function App() {
       <header><div><p className="eyebrow">MY PROPERTY</p><h1>{activeProperty.name}資產儀表板</h1><p>{activeProperty.address || '尚未設定地址'}・用同一組已儲存資料理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>
 
       <section className="metrics">
-        <Card label="房地交易所得稅初估" value={nt(result.tax)} note="查看所得、成本、費用與尚缺資料" onClick={() => setDetail(details.transactionTax)} />
+        <Card label="賣房稅費" value={result.taxAnalysis.complete ? nt(result.tax) : `${nt(result.tax)}（資料未齊）`} note={`${result.taxAnalysis.regimeLabel}・查看法規判定`} onClick={() => setDetail(details.transactionTax)} />
       </section>
 
       <section className="grid">
@@ -420,7 +426,6 @@ function App() {
             </div>)}
             <div className="sellingCostTotal"><span>出售成本合計</span><strong>{nt(result.saleCosts)}</strong></div>
           </div>
-          <Field label="暫用所得稅率" value={inputs.taxRate} suffix="%" step={1} onChange={v => updateScenarioNumber('taxRate', v)} />
         </article>
       </section>
 
@@ -467,6 +472,8 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
     onChange({ ...profile, [key]: value })
   const updateCost = (key: keyof PropertyProfile['acquisitionCosts'], value: number) =>
     onChange({ ...profile, acquisitionCosts: { ...profile.acquisitionCosts, [key]: value } })
+  const updateTaxProfile = (changes: Partial<PropertyProfile['taxProfile']>) =>
+    onChange({ ...profile, taxProfile: { ...profile.taxProfile, ...changes } })
   const addCustomCost = () => onChange({
     ...profile,
     customAcquisitionCosts: [
@@ -555,6 +562,29 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
           <NumberInput label="目前房貸利率" value={profile.annualRate} step={0.01} suffix="%" onChange={value => updateNumber('annualRate', value)} />
           <NumberInput label="剩餘貸款年限" value={profile.remainingLoanYears} suffix="年" onChange={value => updateNumber('remainingLoanYears', value)} />
         </EditorSection>
+        <EditorSection title="賣房稅務資料">
+          <div className="taxNotice">取得日會用來判定新舊制；持有期間與適用稅率會依情境中的出售日自動判定。</div>
+          <SelectInput label="納稅人身分" value={profile.taxProfile.residency} onChange={value => updateTaxProfile({ residency: value as PropertyProfile['taxProfile']['residency'] })}>
+            <option value="resident">中華民國境內居住者</option>
+            <option value="nonresident">非境內居住者</option>
+          </SelectInput>
+          <SelectInput label="出售費用認列方式" value={profile.taxProfile.sellingExpenseMethod} onChange={value => updateTaxProfile({ sellingExpenseMethod: value as PropertyProfile['taxProfile']['sellingExpenseMethod'] })}>
+            <option value="documented">依實際憑證</option>
+            <option value="statutory">無完整憑證，依法定推計</option>
+          </SelectInput>
+          <NumberInput label="前3年可扣抵房地交易損失" value={profile.taxProfile.priorThreeYearTransactionLoss} onChange={value => updateTaxProfile({ priorThreeYearTransactionLoss: value })} />
+          <NullableNumberInput label="土地漲價總數額" value={profile.taxProfile.landPriceIncrementTotal} onChange={value => updateTaxProfile({ landPriceIncrementTotal: value })} />
+          <NullableNumberInput label="土地增值稅核定／官方試算額" value={profile.taxProfile.landValueIncrementTax} onChange={value => updateTaxProfile({ landValueIncrementTax: value })} />
+          <NumberInput label="可列費用的土地增值稅部分" value={profile.taxProfile.deductibleLandValueIncrementTax} onChange={value => updateTaxProfile({ deductibleLandValueIncrementTax: value })} />
+          <CheckInput label="準備申請自住房地優惠" checked={profile.taxProfile.claimsSelfUseBenefit} onChange={checked => updateTaxProfile({ claimsSelfUseBenefit: checked })} />
+          {profile.taxProfile.claimsSelfUseBenefit && <div className="taxQualifications">
+            <CheckInput label="本人、配偶或未成年子女設籍、持有並居住連續滿6年" checked={profile.taxProfile.householdRegisteredAndLivedSixYears} onChange={checked => updateTaxProfile({ householdRegisteredAndLivedSixYears: checked })} />
+            <CheckInput label="交易前6年內未出租、營業或執行業務" checked={profile.taxProfile.noRentalOrBusinessUseSixYears} onChange={checked => updateTaxProfile({ noRentalOrBusinessUseSixYears: checked })} />
+            <CheckInput label="本人、配偶及未成年子女前6年未用過此優惠" checked={profile.taxProfile.noSelfUseBenefitInPriorSixYears} onChange={checked => updateTaxProfile({ noSelfUseBenefitInPriorSixYears: checked })} />
+          </div>}
+          <CheckInput label="確認符合財政部公告的非自願性交易資格" checked={profile.taxProfile.involuntaryTransferEligible} onChange={checked => updateTaxProfile({ involuntaryTransferEligible: checked })} />
+          <div className="taxNotice warning">土地增值稅請優先填入地方稅機關核定或官方試算結果；房地成交價無法可靠推回公告土地現值。</div>
+        </EditorSection>
         <div className="storageNote">資料只儲存在這台裝置的此瀏覽器中，不會上傳到伺服器。</div>
         <button className="saveProperty" type="submit">儲存並套用</button>
       </form>
@@ -573,6 +603,18 @@ function TextInput({ label, value, type = 'text', required = false, onChange }: 
 
 function NumberInput({ label, value, suffix = '', step = 1, onChange }: { label: string; value: number; suffix?: string; step?: number; onChange: (value: number) => void }) {
   return <label className="editorField"><span>{label}</span><div><input type="number" min="0" step={step} placeholder="0" value={value || ''} onChange={event => onChange(event.target.value === '' ? 0 : Number(event.target.value))} />{suffix && <em>{suffix}</em>}</div></label>
+}
+
+function NullableNumberInput({ label, value, onChange }: { label: string; value: number | null; onChange: (value: number | null) => void }) {
+  return <label className="editorField"><span>{label}</span><div><input type="number" min="0" placeholder="尚未填寫" value={value ?? ''} onChange={event => onChange(event.target.value === '' ? null : Number(event.target.value))} /></div></label>
+}
+
+function SelectInput({ label, value, children, onChange }: { label: string; value: string; children: ReactNode; onChange: (value: string) => void }) {
+  return <label className="editorField"><span>{label}</span><select value={value} onChange={event => onChange(event.target.value)}>{children}</select></label>
+}
+
+function CheckInput({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return <label className="checkField"><input type="checkbox" checked={checked} onChange={event => onChange(event.target.checked)} /><span>{label}</span></label>
 }
 
 function Field({ label, value, suffix, step = 1, onChange }: { label: string; value: number; suffix: string; step?: number; onChange: (v: number) => void }) {

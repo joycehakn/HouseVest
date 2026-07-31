@@ -70,6 +70,7 @@ type CalculationDetail = {
     label: string
     value: string
     operator?: string
+    noteAbove?: string
     children?: { label: string; value: string }[]
   }[]
   note?: string
@@ -244,7 +245,14 @@ function App() {
         },
         { label: '交易所得', value: nt(result.taxAnalysis.transactionIncome), operator: '=' },
         { label: '前3年房地交易損失', value: nt(inputs.taxProfile.priorThreeYearTransactionLoss), operator: '−' },
-        { label: '土地漲價總數額', value: inputs.taxProfile.landPriceIncrementTotal === null ? '尚未填寫' : nt(inputs.taxProfile.landPriceIncrementTotal), operator: '−' },
+        {
+          label: '土地漲價總數額',
+          value: inputs.taxProfile.landPriceIncrementTotal === null ? '尚未填寫' : nt(inputs.taxProfile.landPriceIncrementTotal),
+          operator: '−',
+          noteAbove: inputs.taxProfile.landPriceIncrementSource === 'estimate'
+            ? '已套用財政部試算欄預估'
+            : undefined,
+        },
         { label: '課稅所得', value: nt(result.taxAnalysis.taxableIncome), operator: '=' },
         ...(result.taxAnalysis.selfUseQualified ? [{ label: '自住房地免稅額', value: nt(result.taxAnalysis.selfUseExemption), operator: '−' }] : []),
         { label: `適用稅率 ${result.taxAnalysis.appliedRate ?? '—'}%`, value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '×' },
@@ -552,7 +560,12 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
               {row.children.length > 0 && <div>{row.children.map((child, childIndex) => <p key={`${child.label}-${childIndex}`}><span>{child.label}</span><strong>{child.value}</strong></p>)}</div>}
             </details>
           : <div className={row.operator === '=' ? 'total' : ''} key={`${row.label}-${index}`}>
-              <i>{row.operator ?? ''}</i><span>{row.label}</span><strong>{row.value}</strong>
+              <i>{row.operator ?? ''}</i>
+              <span>
+                {row.noteAbove && <small className="calculationSourceNote">{row.noteAbove}</small>}
+                {row.label}
+              </span>
+              <strong>{row.value}</strong>
             </div>)}
       </div>
       {detail.note && <div className="caveat"><b>範圍與限制</b><p>{detail.note}</p></div>}

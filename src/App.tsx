@@ -46,7 +46,12 @@ type CalculationDetail = {
   result: string
   summary: string
   formula: string
-  rows: { label: string; value: string; operator?: string }[]
+  rows: {
+    label: string
+    value: string
+    operator?: string
+    children?: { label: string; value: string }[]
+  }[]
   note?: string
 }
 
@@ -174,13 +179,15 @@ function App() {
       rows: [
         { label: '預估成交價', value: nt(inputs.salePrice) },
         { label: '購入價格', value: nt(inputs.purchasePrice), operator: '−' },
-        ...(enteredAcquisitionCosts.length > 0
-          ? enteredAcquisitionCosts.map(cost => ({
-              label: `取得成本：${cost.label}`,
-              value: nt(cost.value),
-            }))
-          : [{ label: '取得成本明細', value: '尚未輸入任何項目' }]),
-        { label: '可辨識取得成本合計', value: nt(inputs.acquisitionCosts), operator: '−' },
+        {
+          label: `可辨識取得成本（${enteredAcquisitionCosts.length} 項）`,
+          value: nt(inputs.acquisitionCosts),
+          operator: '−',
+          children: enteredAcquisitionCosts.map(cost => ({
+            label: cost.label,
+            value: nt(cost.value),
+          })),
+        },
         { label: `稅法認列出售費用（${inputs.taxProfile.sellingExpenseMethod === 'documented' ? '憑證' : '法定推計'}）`, value: nt(result.taxAnalysis.recognizedSellingExpenses), operator: '−' },
         { label: '交易所得', value: nt(result.taxAnalysis.transactionIncome), operator: '=' },
         { label: '前3年房地交易損失', value: nt(inputs.taxProfile.priorThreeYearTransactionLoss), operator: '−' },
@@ -472,9 +479,14 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
       <p className="drawerSummary">{detail.summary}</p>
       <div className="formula"><span>公式</span><code>{detail.formula}</code></div>
       <div className="calculationRows">
-        {detail.rows.map((row, index) => <div className={row.operator === '=' ? 'total' : ''} key={`${row.label}-${index}`}>
-          <i>{row.operator ?? ''}</i><span>{row.label}</span><strong>{row.value}</strong>
-        </div>)}
+        {detail.rows.map((row, index) => row.children
+          ? <details className="calculationGroup" key={`${row.label}-${index}`}>
+              <summary><i>{row.operator ?? ''}</i><span>{row.label}<small>{row.children.length > 0 ? '點擊展開明細' : '尚未輸入項目'}</small></span><strong>{row.value}</strong></summary>
+              {row.children.length > 0 && <div>{row.children.map((child, childIndex) => <p key={`${child.label}-${childIndex}`}><span>{child.label}</span><strong>{child.value}</strong></p>)}</div>}
+            </details>
+          : <div className={row.operator === '=' ? 'total' : ''} key={`${row.label}-${index}`}>
+              <i>{row.operator ?? ''}</i><span>{row.label}</span><strong>{row.value}</strong>
+            </div>)}
       </div>
       {detail.note && <div className="caveat"><b>範圍與限制</b><p>{detail.note}</p></div>}
     </aside>

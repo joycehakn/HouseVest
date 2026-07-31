@@ -491,7 +491,12 @@ function App() {
           note={`${result.taxAnalysis.regimeLabel}・查看淨利計算`}
           onClick={() => setDetail(details.profit)}
         />
-        <Card label={`賣房稅費・${result.taxAnalysis.regimeLabel}`} value={result.taxAnalysis.complete ? nt(result.tax) : `${nt(result.tax)}（資料未齊）`} note="查看稅制、稅率與完整計算" onClick={() => setDetail(details.transactionTax)} />
+        <Card
+          label={`賣房稅費・${result.taxAnalysis.regimeLabel}`}
+          value={`${nt(result.tax)}（稅前交易所得 ${nt(result.taxAnalysis.transactionIncome)}${result.taxAnalysis.complete ? '' : '・資料未齊'}）`}
+          note="查看稅制、稅率與完整計算"
+          onClick={() => setDetail(details.transactionTax)}
+        />
       </section>
 
       <section className="grid">

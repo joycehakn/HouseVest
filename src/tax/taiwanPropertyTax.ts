@@ -28,6 +28,7 @@ export type TaiwanPropertyTaxProfile = {
   sellingExpenseMethod: SellingExpenseMethod
   priorThreeYearTransactionLoss: number
   landPriceIncrementTotal: number | null
+  landPriceIncrementSource?: "estimate" | "manual"
   landValueIncrementTax: number | null
   deductibleLandValueIncrementTax: number
   claimsSelfUseBenefit: boolean

@@ -804,7 +804,9 @@ function PropertyEditor({ profile, saleDate, onChange, onPersist, onSave, onClos
           </SelectInput>
           <div className="taxNotice">出售費用會自動比較實際憑證合計與法定推計額（成交價3%，最高30萬元），採用較高者；不用手動選擇。</div>
           <NumberInput label="前3年可扣抵房地交易損失" help="填入其他新制房地交易在本次交易日前3年內、經國稅局核定且尚未扣完的損失。沒有核定通知書時填0。" value={profile.taxProfile.priorThreeYearTransactionLoss} onChange={value => updateTaxProfile({ priorThreeYearTransactionLoss: value })} />
-          <NullableNumberInput label="土地漲價總數額" help="取自土地增值稅繳款書或免稅證明書，用來自房地交易所得中減除。這不是土地增值稅稅額；未知時保持空白。" value={profile.taxProfile.landPriceIncrementTotal} onChange={value => updateTaxProfile({ landPriceIncrementTotal: value })} />
+          <NullableNumberInput label="土地漲價總數額" help="取自土地增值稅繳款書或免稅證明書，用來自房地交易所得中減除。這不是土地增值稅稅額；未知時保持空白。" value={profile.taxProfile.landPriceIncrementTotal} onChange={value => updateTaxProfile({ landPriceIncrementTotal: value, landPriceIncrementSource: 'manual' })} />
+          {profile.taxProfile.landPriceIncrementSource === 'estimate' &&
+            <div className="appliedEstimateStatus">已套用財政部試算欄預估</div>}
           <details className="landEstimator">
             <summary><span>用財政部試算欄位預估</span><small>可新增多筆地號</small></summary>
             <div className="landEstimatorBody">
@@ -864,7 +866,7 @@ function PropertyEditor({ profile, saleDate, onChange, onPersist, onSave, onClos
               })}
               <button className="addLandParcel" type="button" onClick={addLandParcel}><Plus size={14}/>新增一筆土地</button>
               <div className="landEstimateTotal"><span>預估土地漲價總數額合計</span><strong>{landEstimateComplete ? nt(estimatedLandPriceIncrementTotal) : '資料未齊'}</strong></div>
-              <button className="applyLandEstimate" type="button" disabled={!landEstimateComplete} onClick={() => updateTaxProfile({ landPriceIncrementTotal: estimatedLandPriceIncrementTotal })}>套用預估合計</button>
+              <button className="applyLandEstimate" type="button" disabled={!landEstimateComplete} onClick={() => updateTaxProfile({ landPriceIncrementTotal: estimatedLandPriceIncrementTotal, landPriceIncrementSource: 'estimate' })}>套用預估合計</button>
               <p className="estimateCaveat">此為規劃用預估；正式申報仍以土地增值稅繳款書或免稅證明書核定金額為準。</p>
             </div>
           </details>

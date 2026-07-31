@@ -485,6 +485,12 @@ function App() {
       <header><div><p className="eyebrow">MY PROPERTY</p><h1>{activeProperty.name}資產儀表板</h1><p>{activeProperty.address || '尚未設定地址'}・用同一組已儲存資料理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>
 
       <section className="metrics">
+        <Card
+          label="稅後淨利"
+          value={`${nt(result.profit)}（稅金 ${nt(result.tax)}）`}
+          note={`${result.taxAnalysis.regimeLabel}・查看淨利計算`}
+          onClick={() => setDetail(details.profit)}
+        />
         <Card label={`賣房稅費・${result.taxAnalysis.regimeLabel}`} value={result.taxAnalysis.complete ? nt(result.tax) : `${nt(result.tax)}（資料未齊）`} note="查看稅制、稅率與完整計算" onClick={() => setDetail(details.transactionTax)} />
       </section>
 

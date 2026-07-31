@@ -101,11 +101,14 @@ function App() {
     { label: '登記與規費', value: activeProperty.acquisitionCosts.registrationFees },
     { label: '購入仲介費', value: activeProperty.acquisitionCosts.agencyFee },
     { label: '代書費', value: activeProperty.acquisitionCosts.legalFee },
-    ...activeProperty.customAcquisitionCosts.map(cost => ({
+  ].filter(cost => cost.value > 0).concat(
+    activeProperty.customAcquisitionCosts
+      .filter(cost => cost.name.trim() !== '' || cost.amount > 0)
+      .map(cost => ({
       label: cost.name.trim() || '自訂取得成本',
       value: cost.amount,
-    })),
-  ].filter(cost => cost.value > 0), [activeProperty])
+      })),
+  ), [activeProperty])
   const scenarioComparisons = useMemo(() => [
     { offset: -1_000_000, label: '−100 萬' },
     { offset: -500_000, label: '−50 萬' },

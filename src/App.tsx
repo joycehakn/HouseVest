@@ -21,6 +21,16 @@ import {
   estimateLandPriceIncrementTotal,
   type LandPriceIncrementParcel,
 } from './tax/taiwanPropertyTax'
+import { fetchOfficialLandValue } from './land/officialLandValue'
+
+const landCityOptions = [
+  ['A', '臺北市'], ['F', '新北市'], ['H', '桃園市'], ['B', '臺中市'],
+  ['D', '臺南市'], ['E', '高雄市'], ['C', '基隆市'], ['O', '新竹市'],
+  ['I', '嘉義市'], ['G', '宜蘭縣'], ['J', '新竹縣'], ['K', '苗栗縣'],
+  ['N', '彰化縣'], ['M', '南投縣'], ['P', '雲林縣'], ['Q', '嘉義縣'],
+  ['T', '屏東縣'], ['U', '花蓮縣'], ['V', '臺東縣'], ['W', '金門縣'],
+  ['X', '澎湖縣'], ['Z', '連江縣'],
+] as const
 
 type ScenarioInputs = {
   salePrice: number
@@ -546,6 +556,7 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
 
 function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { profile: PropertyProfile; onChange: (profile: PropertyProfile) => void; onPersist: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
   const [recognizing, setRecognizing] = useState(false)
+  const [landLookupStatus, setLandLookupStatus] = useState<Record<string, { state: 'loading' | 'success' | 'error'; message: string }>>({})
   const updateText = (key: 'name' | 'address' | 'purchaseDate' | 'mortgageDataDate', value: string) =>
     onChange({ ...profile, [key]: value })
   const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'paymentEstimateAnnualRate' | 'originalLoanTermYears' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue', value: number) =>
@@ -567,6 +578,9 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
         ownershipNumerator: 1,
         ownershipDenominator: 1,
         improvementCosts: 0,
+        officialCityCode: '',
+        officialSectionCode: '',
+        officialLandNumber: '',
       },
     ],
   })
@@ -585,6 +599,40 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
         parcel.id !== id
       ),
   })
+  const lookupOfficialLandValue = async (parcel: LandPriceIncrementParcel) => {
+    setLandLookupStatus(current => ({
+      ...current,
+      [parcel.id]: { state: 'loading', message: '正在查詢內政部資料…' },
+    }))
+    try {
+      const official = await fetchOfficialLandValue(
+        parcel.officialCityCode ?? '',
+        parcel.officialSectionCode ?? '',
+        parcel.officialLandNumber ?? '',
+      )
+      updateLandParcel(parcel.id, {
+        currentDeclaredValuePerSquareMeter: official.announcedCurrentValue,
+        officialLandNumber: official.landNumber,
+        officialLookupAt: new Date().toISOString(),
+        officialProvider: official.provider,
+      })
+      setLandLookupStatus(current => ({
+        ...current,
+        [parcel.id]: {
+          state: 'success',
+          message: `已帶入每平方公尺 ${nt(official.announcedCurrentValue)}；來源：${official.provider}`,
+        },
+      }))
+    } catch (error) {
+      setLandLookupStatus(current => ({
+        ...current,
+        [parcel.id]: {
+          state: 'error',
+          message: error instanceof Error ? error.message : '官方資料查詢失敗',
+        },
+      }))
+    }
+  }
   const addCustomCost = () => onChange({
     ...profile,
     customAcquisitionCosts: [
@@ -715,6 +763,19 @@ function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { pro
                 return <section className="landParcel" key={parcel.id}>
                   <div className="landParcelHeader"><strong>{parcel.name || '未命名土地'}</strong><button type="button" aria-label={`刪除${parcel.name || '土地'}`} onClick={() => removeLandParcel(parcel.id)}><Trash2 size={13}/></button></div>
                   <TextInput label="地號或名稱" value={parcel.name} onChange={value => updateLandParcel(parcel.id, { name: value })} />
+                  <div className="officialLookup">
+                    <p>官方公告土地現值</p>
+                    <SelectInput label="縣市" value={parcel.officialCityCode ?? ''} onChange={value => updateLandParcel(parcel.id, { officialCityCode: value })}>
+                      <option value="">請選擇</option>
+                      {landCityOptions.map(([code, name]) => <option value={code} key={code}>{name}</option>)}
+                    </SelectInput>
+                    <TextInput label="段小段代碼" help="內政部API使用4碼段小段代碼，不是段名。可由土地謄本或政府土地段名代碼資料查得。" value={parcel.officialSectionCode ?? ''} onChange={value => updateLandParcel(parcel.id, { officialSectionCode: value.replace(/\D/g, '').slice(0, 4) })} />
+                    <a className="sectionCodeLink" href="https://data.gov.tw/dataset/122674" target="_blank" rel="noreferrer">查詢官方土地段名代碼</a>
+                    <TextInput label="地號" help="可輸入427或427-13；系統會自動轉為官方母號、子號各4碼格式。" value={parcel.officialLandNumber ?? ''} onChange={value => updateLandParcel(parcel.id, { officialLandNumber: value })} />
+                    <button type="button" disabled={landLookupStatus[parcel.id]?.state === 'loading'} onClick={() => lookupOfficialLandValue(parcel)}>從官方資料帶入</button>
+                    {landLookupStatus[parcel.id] && <div className={`lookupStatus ${landLookupStatus[parcel.id].state}`}>{landLookupStatus[parcel.id].message}</div>}
+                    {parcel.officialLookupAt && <small>上次查詢：{new Date(parcel.officialLookupAt).toLocaleString('zh-TW')}</small>}
+                  </div>
                   <NullableNumberInput label="本次公告／申報現值（每平方公尺）" help="填本次移轉採用的土地公告現值或經核定的申報移轉現值單價。" value={parcel.currentDeclaredValuePerSquareMeter} onChange={value => updateLandParcel(parcel.id, { currentDeclaredValuePerSquareMeter: value })} />
                   <NullableNumberInput label="原規定地價或前次移轉現值（每平方公尺）" help="可從土地謄本、前次移轉資料或地方稅捐機關取得。" value={parcel.previousDeclaredValuePerSquareMeter} onChange={value => updateLandParcel(parcel.id, { previousDeclaredValuePerSquareMeter: value })} />
                   <NullableNumberInput label="稅務專用物價指數" help="以百分比輸入，例如120代表120%；請使用財政部試算所連結的稅務專用消費者物價總指數。" value={parcel.cpiAdjustmentPercent} suffix="%" step={0.01} onChange={value => updateLandParcel(parcel.id, { cpiAdjustmentPercent: value })} />

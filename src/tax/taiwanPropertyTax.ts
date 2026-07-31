@@ -11,6 +11,11 @@ export type LandPriceIncrementParcel = {
   ownershipNumerator: number
   ownershipDenominator: number
   improvementCosts: number
+  officialCityCode?: string
+  officialSectionCode?: string
+  officialLandNumber?: string
+  officialLookupAt?: string
+  officialProvider?: string
 }
 
 export type TaiwanPropertyTaxProfile = {

@@ -83,6 +83,20 @@ function App() {
     ...scenario,
   }), [activeProperty, scenario])
   const result = useMemo(() => calculatePropertyAnalysis(inputs), [inputs])
+  const scenarioComparisons = useMemo(() => [
+    { offset: -1_000_000, label: '−100 萬' },
+    { offset: -500_000, label: '−50 萬' },
+    { offset: 0, label: '基準情境' },
+    { offset: 500_000, label: '＋50 萬' },
+    { offset: 1_000_000, label: '＋100 萬' },
+  ].map(item => {
+    const salePrice = Math.max(0, inputs.salePrice + item.offset)
+    return {
+      ...item,
+      salePrice,
+      result: calculatePropertyAnalysis({ ...inputs, salePrice }),
+    }
+  }), [inputs])
 
   const details = useMemo<Record<string, CalculationDetail>>(() => ({
     marketValue: {
@@ -211,6 +225,26 @@ function App() {
     },
   ], [inputs])
 
+  const showScenarioDetail = (scenarioResult: typeof scenarioComparisons[number]) => {
+    const comparison = scenarioResult.result
+    setDetail({
+      title: `${scenarioResult.label}成交價情境`,
+      result: nt(scenarioResult.salePrice),
+      summary: '這五個情境只改變預估成交價，其餘房屋、貸款、稅率、成本與出售日期完全相同。',
+      formula: '情境成交價 = 基準預估成交價 ± 情境差額',
+      rows: [
+        { label: '基準預估成交價', value: nt(inputs.salePrice) },
+        { label: '情境調整', value: `${scenarioResult.offset >= 0 ? '+' : '−'}${nt(Math.abs(scenarioResult.offset))}` },
+        { label: '情境成交價', value: nt(scenarioResult.salePrice), operator: '=' },
+        { label: '出售實拿', value: nt(comparison.netCash) },
+        { label: '稅後獲利', value: nt(comparison.profit) },
+        { label: '房屋 CAGR', value: pct(comparison.cagr) },
+        { label: '自有資金 IRR', value: Number.isFinite(comparison.leveragedIrr) ? pct(comparison.leveragedIrr) : '無法計算' },
+      ],
+      note: '出售實拿已扣除出售成本、簡化稅額與貸款餘額；稅後獲利與 IRR 另納入期初自有資金、截至日房貸付款與出售前預估付款。',
+    })
+  }
+
   const updateScenarioNumber = (key: 'salePrice' | 'saleCostsRate' | 'taxRate', value: number) =>
     setScenario(current => ({ ...current, [key]: value }))
   const updateSaleDate = (value: string) => setScenario(current => {
@@ -299,13 +333,20 @@ function App() {
 
       <section className="grid">
         <article className="panel performance">
-          <div className="panelTitle"><div><p className="eyebrow">INVESTMENT PERFORMANCE</p><h2>投資績效</h2></div><Sparkles size={20}/></div>
-          <div className="performanceGrid">
-            <Metric label="房屋 CAGR" value={pct(result.cagr)} note="房屋本身扣除出售成本與簡化稅額後的年化成長。" onClick={() => setDetail(details.cagr)} />
-            <Metric label="自有資金 IRR" value={Number.isFinite(result.leveragedIrr) ? pct(result.leveragedIrr) : '無法計算'} note="納入期初資金、逐月房貸與出售回收的年化報酬。" onClick={() => setDetail(details.irr)} />
-            <Metric label="稅後獲利" value={nt(result.profit)} note="出售實拿扣除期初資金與累積房貸付款。" onClick={() => setDetail(details.profit)} />
+          <div className="panelTitle"><div><p className="eyebrow">PRICE SCENARIO COMPARISON</p><h2>五種成交價情境比較</h2></div><Sparkles size={20}/></div>
+          <p className="comparisonSummary">以目前設定的 {nt(inputs.salePrice)} 為基準，自動比較上下 50 萬與 100 萬的投資結果。</p>
+          <div className="scenarioTableWrap">
+            <table className="scenarioTable">
+              <thead><tr><th>投資績效</th>{scenarioComparisons.map(item => <th className={item.offset === 0 ? 'baseline' : ''} key={item.offset}><span>{item.label}</span><strong>{nt(item.salePrice)}</strong></th>)}</tr></thead>
+              <tbody>
+                <tr><th>出售實拿</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.netCash)}</td>)}</tr>
+                <tr><th>稅後獲利</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.profit)}</td>)}</tr>
+                <tr><th>房屋 CAGR</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{pct(item.result.cagr)}</td>)}</tr>
+                <tr><th>自有資金 IRR</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{Number.isFinite(item.result.leveragedIrr) ? pct(item.result.leveragedIrr) : '無法計算'}</td>)}</tr>
+                <tr className="scenarioActions"><th>計算依據</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}><button onClick={() => showScenarioDetail(item)}><Calculator size={13}/>查看</button></td>)}</tr>
+              </tbody>
+            </table>
           </div>
-          <div className="insight"><b>HouseVest 洞察</b><p>{result.leveragedIrr > result.cagr * 2 ? '房屋本身增值溫和，但貸款槓桿明顯放大了自有資金報酬。請同時留意利率與每月現金流風險。' : '房屋本身增值與自有資金報酬接近，槓桿放大效果較有限。'}</p></div>
         </article>
 
         <article className="panel controls">

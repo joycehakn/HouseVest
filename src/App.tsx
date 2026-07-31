@@ -20,14 +20,16 @@ import { DocumentRecognition } from './ai/DocumentRecognition'
 
 type ScenarioInputs = {
   salePrice: number
-  saleCostsRate: number
+  sellingAgencyFeeRate: number
+  customSellingCosts: { id: string; name: string; amount: number }[]
   taxRate: number
   saleDate: string
 }
 
 const initialScenario: ScenarioInputs = {
   salePrice: 17_500_000,
-  saleCostsRate: 4,
+  sellingAgencyFeeRate: 4,
+  customSellingCosts: [],
   taxRate: 20,
   saleDate: '2026-08-01',
 }
@@ -80,7 +82,14 @@ function App() {
     annualRate: activeProperty.annualRate,
     remainingLoanYears: activeProperty.remainingLoanYears,
     purchaseDate: activeProperty.purchaseDate,
-    ...scenario,
+    salePrice: scenario.salePrice,
+    sellingAgencyFeeRate: scenario.sellingAgencyFeeRate,
+    otherSellingCosts: scenario.customSellingCosts.reduce(
+      (total, cost) => total + cost.amount,
+      0,
+    ),
+    taxRate: scenario.taxRate,
+    saleDate: scenario.saleDate,
   }), [activeProperty, scenario])
   const result = useMemo(() => calculatePropertyAnalysis(inputs), [inputs])
   const scenarioComparisons = useMemo(() => [
@@ -139,7 +148,8 @@ function App() {
       formula: '出售實拿 = 售價 − 出售成本 − 稅額 − 貸款餘額',
       rows: [
         { label: '預估成交價', value: nt(inputs.salePrice) },
-        { label: `出售成本（${inputs.saleCostsRate}%）`, value: nt(result.saleCosts), operator: '−' },
+        { label: `出售仲介費（${inputs.sellingAgencyFeeRate}%）`, value: nt(result.sellingAgencyFee), operator: '−' },
+        { label: '其他出售成本', value: nt(result.otherSellingCosts), operator: '−' },
         { label: `簡化稅額（${inputs.taxRate}%）`, value: nt(result.tax), operator: '−' },
         { label: '貸款餘額', value: nt(result.balance), operator: '−' },
         { label: '出售實拿', value: nt(result.netCash), operator: '=' },
@@ -236,6 +246,9 @@ function App() {
         { label: '基準預估成交價', value: nt(inputs.salePrice) },
         { label: '情境調整', value: `${scenarioResult.offset >= 0 ? '+' : '−'}${nt(Math.abs(scenarioResult.offset))}` },
         { label: '情境成交價', value: nt(scenarioResult.salePrice), operator: '=' },
+        { label: `出售仲介費（${inputs.sellingAgencyFeeRate}%）`, value: nt(comparison.sellingAgencyFee), operator: '−' },
+        { label: '其他出售成本', value: nt(comparison.otherSellingCosts), operator: '−' },
+        { label: '出售成本合計', value: nt(comparison.saleCosts), operator: '=' },
         { label: '出售實拿', value: nt(comparison.netCash) },
         { label: '稅後獲利', value: nt(comparison.profit) },
         { label: '房屋 CAGR', value: pct(comparison.cagr) },
@@ -245,12 +258,32 @@ function App() {
     })
   }
 
-  const updateScenarioNumber = (key: 'salePrice' | 'saleCostsRate' | 'taxRate', value: number) =>
+  const updateScenarioNumber = (key: 'salePrice' | 'sellingAgencyFeeRate' | 'taxRate', value: number) =>
     setScenario(current => ({ ...current, [key]: value }))
   const updateSaleDate = (value: string) => setScenario(current => {
     if (value <= activeProperty.purchaseDate || value < activeProperty.mortgageDataDate) return current
     return { ...current, saleDate: value }
   })
+  const addSellingCost = () => setScenario(current => ({
+    ...current,
+    customSellingCosts: [
+      ...current.customSellingCosts,
+      { id: crypto.randomUUID(), name: '', amount: 0 },
+    ],
+  }))
+  const updateSellingCost = (
+    id: string,
+    changes: Partial<ScenarioInputs['customSellingCosts'][number]>,
+  ) => setScenario(current => ({
+    ...current,
+    customSellingCosts: current.customSellingCosts.map(cost =>
+      cost.id === id ? { ...cost, ...changes } : cost
+    ),
+  }))
+  const removeSellingCost = (id: string) => setScenario(current => ({
+    ...current,
+    customSellingCosts: current.customSellingCosts.filter(cost => cost.id !== id),
+  }))
   const storeDatabase = (nextDatabase: PropertyDatabase) => {
     setDatabase(nextDatabase)
     savePropertyDatabase(window.localStorage, nextDatabase)
@@ -355,7 +388,20 @@ function App() {
           <div className="savedFact"><span>購入成交日</span><strong>{activeProperty.purchaseDate}</strong></div>
           <DateField label="出售成交日" value={inputs.saleDate} min={activeProperty.mortgageDataDate} onChange={updateSaleDate} />
           <div className="holdingPeriod"><span>自動計算持有期間</span><strong>{money(result.holdingDays)} 天・{result.holdingYears.toFixed(3)} 年</strong></div>
-          <Field label="出售成本率" value={inputs.saleCostsRate} suffix="%" step={0.1} onChange={v => updateScenarioNumber('saleCostsRate', v)} />
+          <Field label="出售仲介費率" value={inputs.sellingAgencyFeeRate} suffix="%" step={0.1} onChange={v => updateScenarioNumber('sellingAgencyFeeRate', v)} />
+          <div className="sellingCosts">
+            <div className="sellingCostsHeader">
+              <div><span>其他出售成本</span><strong>{nt(result.otherSellingCosts)}</strong></div>
+              <button type="button" onClick={addSellingCost}><Plus size={14}/>新增</button>
+            </div>
+            {scenario.customSellingCosts.length === 0 && <p>目前沒有其他固定費用</p>}
+            {scenario.customSellingCosts.map(cost => <div className="sellingCostRow" key={cost.id}>
+              <input aria-label="出售成本名稱" placeholder="例如：代書費" value={cost.name} onChange={event => updateSellingCost(cost.id, { name: event.target.value })} />
+              <input aria-label={`${cost.name || '出售成本'}金額`} type="number" min="0" placeholder="金額" value={cost.amount || ''} onChange={event => updateSellingCost(cost.id, { amount: event.target.value === '' ? 0 : Number(event.target.value) })} />
+              <button type="button" aria-label={`刪除${cost.name || '出售成本'}`} onClick={() => removeSellingCost(cost.id)}><Trash2 size={13}/></button>
+            </div>)}
+            <div className="sellingCostTotal"><span>出售成本合計</span><strong>{nt(result.saleCosts)}</strong></div>
+          </div>
           <Field label="房地合一稅率" value={inputs.taxRate} suffix="%" step={1} onChange={v => updateScenarioNumber('taxRate', v)} />
         </article>
       </section>

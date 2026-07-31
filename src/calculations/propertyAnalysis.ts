@@ -11,7 +11,8 @@ export type PropertyInputs = {
   annualRate: number
   remainingLoanYears: number
   salePrice: number
-  saleCostsRate: number
+  sellingAgencyFeeRate: number
+  otherSellingCosts: number
   taxRate: number
   purchaseDate: string
   saleDate: string
@@ -31,6 +32,8 @@ export type PropertyAnalysis = {
   totalMortgagePayments: number
   mortgagePaymentMode: "actual" | "estimated"
   balance: number
+  sellingAgencyFee: number
+  otherSellingCosts: number
   saleCosts: number
   taxableGain: number
   tax: number
@@ -195,7 +198,10 @@ export function calculatePropertyAnalysis(
   const totalMortgagePayments =
     historicalMortgagePayments + futureMortgagePayments
   const balance = inputs.currentLoanBalance
-  const saleCosts = (inputs.salePrice * inputs.saleCostsRate) / 100
+  const sellingAgencyFee =
+    (inputs.salePrice * inputs.sellingAgencyFeeRate) / 100
+  const otherSellingCosts = inputs.otherSellingCosts
+  const saleCosts = sellingAgencyFee + otherSellingCosts
   const taxableGain = Math.max(
     0,
     inputs.salePrice - totalCost - saleCosts,
@@ -254,6 +260,8 @@ export function calculatePropertyAnalysis(
     totalMortgagePayments,
     mortgagePaymentMode: inputs.mortgagePaymentMode,
     balance,
+    sellingAgencyFee,
+    otherSellingCosts,
     saleCosts,
     taxableGain,
     tax,

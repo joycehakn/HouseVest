@@ -20,7 +20,8 @@ const inputs: PropertyInputs = {
   annualRate: 2.18,
   remainingLoanYears: 25,
   salePrice: 17_500_000,
-  saleCostsRate: 4,
+  sellingAgencyFeeRate: 4,
+  otherSellingCosts: 0,
   taxRate: 20,
   purchaseDate: "2021-08-01",
   saleDate: "2026-08-01",
@@ -121,6 +122,18 @@ describe("calculatePropertyAnalysis", () => {
       result.netCash - result.initialEquity - result.totalMortgagePayments,
       6,
     )
+  })
+
+  it("adds percentage agency fees and fixed selling costs transparently", () => {
+    const result = calculatePropertyAnalysis({
+      ...inputs,
+      sellingAgencyFeeRate: 2,
+      otherSellingCosts: 120_000,
+    })
+
+    expect(result.sellingAgencyFee).toBe(350_000)
+    expect(result.otherSellingCosts).toBe(120_000)
+    expect(result.saleCosts).toBe(470_000)
   })
 
   it("uses the user-entered balance instead of deriving it from interest", () => {

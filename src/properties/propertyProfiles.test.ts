@@ -98,4 +98,13 @@ describe("property profiles", () => {
       previousTransferYearMonth: "",
     })
   })
+
+  it("adds an empty price-per-ping area to older saved properties", () => {
+    const legacy = createDefaultDatabase()
+    delete (legacy.properties[0] as Partial<typeof legacy.properties[0]>)
+      .houseAreaPing
+    const storage = { getItem: () => JSON.stringify(legacy) }
+
+    expect(loadPropertyDatabase(storage).properties[0].houseAreaPing).toBe(0)
+  })
 })

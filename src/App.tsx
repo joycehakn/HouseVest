@@ -40,7 +40,6 @@ const landCityOptions = [
 
 type ScenarioInputs = {
   salePrice: number
-  houseAreaPing: number
   sellingAgencyFeeRate: number
   customSellingCosts: { id: string; name: string; amount: number; documented: boolean }[]
   saleDate: string
@@ -48,7 +47,6 @@ type ScenarioInputs = {
 
 const initialScenario: ScenarioInputs = {
   salePrice: 17_500_000,
-  houseAreaPing: 0,
   sellingAgencyFeeRate: 4,
   customSellingCosts: [],
   saleDate: '2026-08-01',
@@ -401,7 +399,7 @@ function App() {
     })
   }
 
-  const updateScenarioNumber = (key: 'salePrice' | 'houseAreaPing' | 'sellingAgencyFeeRate', value: number) =>
+  const updateScenarioNumber = (key: 'salePrice' | 'sellingAgencyFeeRate', value: number) =>
     setScenario(current => ({ ...current, [key]: value }))
   const updateSaleDate = (value: string) => setScenario(current => {
     if (value <= activeProperty.purchaseDate || value < activeProperty.mortgageDataDate) return current
@@ -578,10 +576,10 @@ function App() {
         <article className="panel controls">
           <div className="panelTitle"><div><p className="eyebrow">LIVE SCENARIO</p><h2>成交價情境</h2></div><SlidersHorizontal size={20}/></div>
           <label className="priceInput"><span>預估成交價</span><div><input aria-label="預估成交價" type="number" min="0" step="10000" placeholder="直接輸入金額" value={inputs.salePrice || ''} onChange={event => updateScenarioNumber('salePrice', event.target.value === '' ? 0 : Number(event.target.value))}/></div></label>
-          <label className="priceInput"><span>成交單價採用坪數</span><div><input aria-label="成交單價採用坪數" type="number" min="0" step="0.01" placeholder="輸入權狀或計價坪數" value={scenario.houseAreaPing || ''} onChange={event => updateScenarioNumber('houseAreaPing', event.target.value === '' ? 0 : Number(event.target.value))}/><small>坪</small></div></label>
+          <div className="savedFact"><span>成交單價採用坪數</span><strong>{activeProperty.houseAreaPing > 0 ? `${activeProperty.houseAreaPing} 坪` : '尚未設定'}</strong></div>
           <div className="unitPriceResult">
             <span>自動換算每坪單價</span>
-            <strong>{scenario.houseAreaPing > 0 ? `${nt(inputs.salePrice / scenario.houseAreaPing)}／坪` : '請先輸入坪數'}</strong>
+            <strong>{activeProperty.houseAreaPing > 0 ? `${nt(inputs.salePrice / activeProperty.houseAreaPing)}／坪` : '請至基本資料輸入坪數'}</strong>
           </div>
           <div className="savedFact"><span>購入成交日</span><strong>{activeProperty.purchaseDate}</strong></div>
           <DateField label="出售成交日" value={inputs.saleDate} min={activeProperty.mortgageDataDate} onChange={updateSaleDate} />
@@ -655,7 +653,7 @@ function PropertyEditor({ profile, saleDate, onChange, onClose }: { profile: Pro
   const [cpiLookupStatus, setCpiLookupStatus] = useState<Record<string, { state: 'loading' | 'success' | 'error'; message: string }>>({})
   const updateText = (key: 'name' | 'address' | 'purchaseDate' | 'mortgageDataDate', value: string) =>
     onChange({ ...profile, [key]: value })
-  const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'paymentEstimateAnnualRate' | 'originalLoanTermYears' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue', value: number) =>
+  const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'paymentEstimateAnnualRate' | 'originalLoanTermYears' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue' | 'houseAreaPing', value: number) =>
     onChange({ ...profile, [key]: value })
   const updateCost = (key: keyof PropertyProfile['acquisitionCosts'], value: number) =>
     onChange({ ...profile, acquisitionCosts: { ...profile.acquisitionCosts, [key]: value } })
@@ -837,6 +835,7 @@ function PropertyEditor({ profile, saleDate, onChange, onClose }: { profile: Pro
           <TextInput label="地址或備註" value={profile.address} onChange={value => updateText('address', value)} />
           <TextInput label="購入成交日" type="date" value={profile.purchaseDate} onChange={value => updateText('purchaseDate', value)} required />
           <NumberInput label="目前預估市值" value={profile.currentMarketValue} onChange={value => updateNumber('currentMarketValue', value)} />
+          <NumberInput label="成交單價採用坪數" help="用來把成交價換算成每坪單價。請填你比較市場行情時採用的權狀或計價坪數；不會影響土地謄本面積與持分。" value={profile.houseAreaPing} suffix="坪" step={0.01} onChange={value => updateNumber('houseAreaPing', value)} />
         </EditorSection>
         <EditorSection title="購入價格與相關成本">
           <NumberInput label="購入價格" value={profile.purchasePrice} onChange={value => updateNumber('purchasePrice', value)} />

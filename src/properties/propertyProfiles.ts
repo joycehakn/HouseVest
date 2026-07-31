@@ -30,6 +30,7 @@ export type PropertyProfile = {
   annualRate: number
   remainingLoanYears: number
   currentMarketValue: number
+  houseAreaPing: number
   taxProfile: TaiwanPropertyTaxProfile
 }
 
@@ -66,6 +67,7 @@ export const defaultProperty: PropertyProfile = {
   annualRate: 2.18,
   remainingLoanYears: 25,
   currentMarketValue: 17_500_000,
+  houseAreaPing: 0,
   taxProfile: {
     residency: "resident",
     sellingExpenseMethod: "documented",
@@ -157,6 +159,7 @@ function migrateProperty(profile: PropertyProfile): PropertyProfile {
     paymentEstimateAnnualRate:
       Number(profile.paymentEstimateAnnualRate) || Number(profile.annualRate) || 0,
     originalLoanTermYears: Number(profile.originalLoanTermYears) || 30,
+    houseAreaPing: Number(profile.houseAreaPing) || 0,
     taxProfile: {
       ...defaultProperty.taxProfile,
       ...(profile.taxProfile ?? {}),

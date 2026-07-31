@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/house-investment-app/',
+  base: process.env.SITES_BUILD === 'true' ? '/' : '/house-investment-app/',
 })

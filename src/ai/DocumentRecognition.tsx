@@ -18,7 +18,7 @@ type SelectedImage = {
   size: number
 }
 
-const API_URL = import.meta.env.VITE_AI_API_URL || 'http://localhost:8787'
+const API_URL = import.meta.env.VITE_AI_API_URL || (import.meta.env.DEV ? 'http://localhost:8787' : '')
 const MAX_IMAGES = 20
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 const allowedTypes = ['image/jpeg', 'image/png', 'image/webp']

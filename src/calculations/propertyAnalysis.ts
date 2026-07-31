@@ -13,7 +13,7 @@ export type PropertyInputs = {
   salePrice: number
   sellingAgencyFeeRate: number
   otherSellingCosts: number
-  taxRate: number
+  taxProfile: TaiwanPropertyTaxProfile
   purchaseDate: string
   saleDate: string
 }
@@ -37,6 +37,7 @@ export type PropertyAnalysis = {
   saleCosts: number
   taxableGain: number
   tax: number
+  taxAnalysis: TaiwanPropertyTaxResult
   netSaleBeforeLoan: number
   netCash: number
   initialEquity: number
@@ -202,11 +203,17 @@ export function calculatePropertyAnalysis(
     (inputs.salePrice * inputs.sellingAgencyFeeRate) / 100
   const otherSellingCosts = inputs.otherSellingCosts
   const saleCosts = sellingAgencyFee + otherSellingCosts
-  const taxableGain = Math.max(
-    0,
-    inputs.salePrice - totalCost - saleCosts,
-  )
-  const tax = (taxableGain * inputs.taxRate) / 100
+  const taxAnalysis = calculateTaiwanPropertyTax({
+    purchaseDate: inputs.purchaseDate,
+    saleDate: inputs.saleDate,
+    salePrice: inputs.salePrice,
+    purchasePrice: inputs.purchasePrice,
+    acquisitionCosts: inputs.acquisitionCosts,
+    documentedSellingExpenses: saleCosts,
+    profile: inputs.taxProfile,
+  })
+  const taxableGain = taxAnalysis.taxableIncome
+  const tax = taxAnalysis.totalTax ?? 0
   const netSaleBeforeLoan = inputs.salePrice - saleCosts - tax
   const netCash = netSaleBeforeLoan - balance
   const initialEquity = totalCost - inputs.originalLoan
@@ -265,6 +272,7 @@ export function calculatePropertyAnalysis(
     saleCosts,
     taxableGain,
     tax,
+    taxAnalysis,
     netSaleBeforeLoan,
     netCash,
     initialEquity,
@@ -275,3 +283,8 @@ export function calculatePropertyAnalysis(
     score,
   }
 }
+import {
+  calculateTaiwanPropertyTax,
+  type TaiwanPropertyTaxProfile,
+  type TaiwanPropertyTaxResult,
+} from "../tax/taiwanPropertyTax"

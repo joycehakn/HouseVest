@@ -30,6 +30,7 @@ export type PropertyProfile = {
   annualRate: number
   remainingLoanYears: number
   currentMarketValue: number
+  taxProfile: TaiwanPropertyTaxProfile
 }
 
 export type PropertyDatabase = {
@@ -65,6 +66,19 @@ export const defaultProperty: PropertyProfile = {
   annualRate: 2.18,
   remainingLoanYears: 25,
   currentMarketValue: 17_500_000,
+  taxProfile: {
+    residency: "resident",
+    sellingExpenseMethod: "documented",
+    priorThreeYearTransactionLoss: 0,
+    landPriceIncrementTotal: null,
+    landValueIncrementTax: null,
+    deductibleLandValueIncrementTax: 0,
+    claimsSelfUseBenefit: false,
+    householdRegisteredAndLivedSixYears: false,
+    noRentalOrBusinessUseSixYears: false,
+    noSelfUseBenefitInPriorSixYears: false,
+    involuntaryTransferEligible: false,
+  },
 }
 
 export function totalAcquisitionCosts(
@@ -132,6 +146,10 @@ function migrateProperty(profile: PropertyProfile): PropertyProfile {
     paymentEstimateAnnualRate:
       Number(profile.paymentEstimateAnnualRate) || Number(profile.annualRate) || 0,
     originalLoanTermYears: Number(profile.originalLoanTermYears) || 30,
+    taxProfile: {
+      ...defaultProperty.taxProfile,
+      ...(profile.taxProfile ?? {}),
+    },
   }
 }
 
@@ -156,3 +174,4 @@ export function savePropertyDatabase(
 ): void {
   storage.setItem(PROPERTY_DATABASE_KEY, JSON.stringify(database))
 }
+import type { TaiwanPropertyTaxProfile } from "../tax/taiwanPropertyTax"

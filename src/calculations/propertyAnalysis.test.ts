@@ -22,7 +22,19 @@ const inputs: PropertyInputs = {
   salePrice: 17_500_000,
   sellingAgencyFeeRate: 4,
   otherSellingCosts: 0,
-  taxRate: 20,
+  taxProfile: {
+    residency: "resident",
+    sellingExpenseMethod: "documented",
+    priorThreeYearTransactionLoss: 0,
+    landPriceIncrementTotal: 0,
+    landValueIncrementTax: 0,
+    deductibleLandValueIncrementTax: 0,
+    claimsSelfUseBenefit: false,
+    householdRegisteredAndLivedSixYears: false,
+    noRentalOrBusinessUseSixYears: false,
+    noSelfUseBenefitInPriorSixYears: false,
+    involuntaryTransferEligible: false,
+  },
   purchaseDate: "2021-08-01",
   saleDate: "2026-08-01",
 }
@@ -113,7 +125,8 @@ describe("calculatePropertyAnalysis", () => {
 
     expect(result.saleCosts).toBe(700_000)
     expect(result.taxableGain).toBe(2_469_133)
-    expect(result.tax).toBeCloseTo(493_826.6, 1)
+    expect(result.taxAnalysis.appliedRate).toBe(35)
+    expect(result.tax).toBeCloseTo(864_196.55, 1)
     expect(result.netCash).toBeCloseTo(
       inputs.salePrice - result.saleCosts - result.tax - result.balance,
       6,

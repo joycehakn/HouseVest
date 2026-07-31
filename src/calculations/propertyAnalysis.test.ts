@@ -12,6 +12,7 @@ const inputs: PropertyInputs = {
   acquisitionCosts: 230_867,
   originalLoan: 11_980_000,
   currentLoanBalance: 10_485_197,
+  mortgageDataDate: "2026-08-01",
   totalMortgagePaymentsPaid: 2_721_992,
   mortgagePaymentMode: "actual",
   paymentEstimateAnnualRate: 2.18,
@@ -66,6 +67,27 @@ describe("mortgage calculations", () => {
     )
     expect(result.totalMortgagePayments).toBeCloseTo(
       expectedMonthlyPayment * result.paidMonths,
+      6,
+    )
+  })
+
+  it("adds projected payments from the mortgage data date to the sale date", () => {
+    const result = calculatePropertyAnalysis({
+      ...inputs,
+      mortgageDataDate: "2025-08-01",
+      saleDate: "2026-08-01",
+    })
+
+    expect(result.historicalMortgagePayments).toBe(
+      inputs.totalMortgagePaymentsPaid,
+    )
+    expect(result.futurePaymentMonths).toBe(12)
+    expect(result.futureMortgagePayments).toBeCloseTo(
+      result.futureMonthlyPayment * 12,
+      6,
+    )
+    expect(result.totalMortgagePayments).toBeCloseTo(
+      result.historicalMortgagePayments + result.futureMortgagePayments,
       6,
     )
   })

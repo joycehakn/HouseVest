@@ -22,6 +22,7 @@ export type PropertyProfile = {
   customAcquisitionCosts: CustomAcquisitionCost[]
   originalLoan: number
   currentLoanBalance: number
+  mortgageDataDate: string
   mortgagePaymentMode: "actual" | "estimated"
   totalMortgagePaymentsPaid: number
   paymentEstimateAnnualRate: number
@@ -56,6 +57,7 @@ export const defaultProperty: PropertyProfile = {
   ],
   originalLoan: 11_980_000,
   currentLoanBalance: 10_485_197,
+  mortgageDataDate: "2026-07-31",
   mortgagePaymentMode: "estimated",
   totalMortgagePaymentsPaid: 0,
   paymentEstimateAnnualRate: 2.18,
@@ -113,6 +115,7 @@ function migrateProperty(profile: PropertyProfile): PropertyProfile {
       legalFee: Number(legacyCosts.legalFee) || 0,
     },
     customAcquisitionCosts: customCosts,
+    mortgageDataDate: profile.mortgageDataDate || new Date().toISOString().slice(0, 10),
     mortgagePaymentMode:
       profile.mortgagePaymentMode === "actual" ||
       profile.mortgagePaymentMode === "estimated"

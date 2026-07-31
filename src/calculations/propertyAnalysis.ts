@@ -3,6 +3,7 @@ export type PropertyInputs = {
   acquisitionCosts: number
   originalLoan: number
   currentLoanBalance: number
+  mortgageDataDate: string
   totalMortgagePaymentsPaid: number
   mortgagePaymentMode: "actual" | "estimated"
   paymentEstimateAnnualRate: number
@@ -23,6 +24,10 @@ export type PropertyAnalysis = {
   averageHistoricalMonthlyPayment: number
   futureMonthlyPayment: number
   paidMonths: number
+  historicalPaidMonths: number
+  futurePaymentMonths: number
+  historicalMortgagePayments: number
+  futureMortgagePayments: number
   totalMortgagePayments: number
   mortgagePaymentMode: "actual" | "estimated"
   balance: number
@@ -60,6 +65,12 @@ export function calculateHoldingPeriod(
     months: Math.max(1, Math.round(days / 30.436875)),
     years: days / 365.2425,
   }
+}
+
+function monthsBetweenOrZero(startDate: string, endDate: string): number {
+  const milliseconds = parseIsoDate(endDate) - parseIsoDate(startDate)
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) return 0
+  return Math.max(1, Math.round(milliseconds / 86_400_000 / 30.436875))
 }
 
 export function mortgagePayment(
@@ -153,22 +164,36 @@ export function calculatePropertyAnalysis(
   )
   const totalCost = inputs.purchasePrice + inputs.acquisitionCosts
   const paidMonths = holdingPeriod.months
+  const historicalPaidMonths = monthsBetweenOrZero(
+    inputs.purchaseDate,
+    inputs.mortgageDataDate,
+  )
   const estimatedMonthlyPayment = mortgagePayment(
     inputs.originalLoan,
     inputs.paymentEstimateAnnualRate,
     inputs.originalLoanTermYears,
   )
-  const estimatedTotalMortgagePayments = estimatedMonthlyPayment * paidMonths
-  const totalMortgagePayments = inputs.mortgagePaymentMode === "actual"
+  const estimatedHistoricalMortgagePayments =
+    estimatedMonthlyPayment * historicalPaidMonths
+  const historicalMortgagePayments = inputs.mortgagePaymentMode === "actual"
     ? inputs.totalMortgagePaymentsPaid
-    : estimatedTotalMortgagePayments
+    : estimatedHistoricalMortgagePayments
   const averageHistoricalMonthlyPayment =
-    totalMortgagePayments / paidMonths
+    historicalPaidMonths > 0
+      ? historicalMortgagePayments / historicalPaidMonths
+      : 0
   const futureMonthlyPayment = mortgagePayment(
     inputs.currentLoanBalance,
     inputs.annualRate,
     inputs.remainingLoanYears,
   )
+  const futurePaymentMonths = monthsBetweenOrZero(
+    inputs.mortgageDataDate,
+    inputs.saleDate,
+  )
+  const futureMortgagePayments = futureMonthlyPayment * futurePaymentMonths
+  const totalMortgagePayments =
+    historicalMortgagePayments + futureMortgagePayments
   const balance = inputs.currentLoanBalance
   const saleCosts = (inputs.salePrice * inputs.saleCostsRate) / 100
   const taxableGain = Math.max(
@@ -184,14 +209,27 @@ export function calculatePropertyAnalysis(
     (Math.pow(netSaleBeforeLoan / totalCost, 1 / holdingPeriod.years) - 1) *
     100
 
+  const historicalCashFlows = Array.from(
+    { length: historicalPaidMonths },
+    () => -averageHistoricalMonthlyPayment,
+  )
+  const untrackedMonths = Math.max(
+    0,
+    paidMonths - historicalPaidMonths - futurePaymentMonths,
+  )
+  const futureCashFlows = Array.from(
+    { length: futurePaymentMonths },
+    (_, index) => index === futurePaymentMonths - 1
+      ? netCash - futureMonthlyPayment
+      : -futureMonthlyPayment,
+  )
   const cashFlows = [
     -initialEquity,
-    ...Array.from({ length: paidMonths }, (_, index) =>
-      index === paidMonths - 1
-        ? netCash - averageHistoricalMonthlyPayment
-        : -averageHistoricalMonthlyPayment,
-    ),
+    ...historicalCashFlows,
+    ...Array.from({ length: untrackedMonths }, () => 0),
+    ...futureCashFlows,
   ]
+  if (futurePaymentMonths === 0) cashFlows[cashFlows.length - 1] += netCash
   const leveragedIrr = annualizedMonthlyIrr(cashFlows)
   const equity = inputs.salePrice - balance
   const score = Math.max(
@@ -209,6 +247,10 @@ export function calculatePropertyAnalysis(
     averageHistoricalMonthlyPayment,
     futureMonthlyPayment,
     paidMonths,
+    historicalPaidMonths,
+    futurePaymentMonths,
+    historicalMortgagePayments,
+    futureMortgagePayments,
     totalMortgagePayments,
     mortgagePaymentMode: inputs.mortgagePaymentMode,
     balance,

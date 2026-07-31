@@ -2,8 +2,10 @@ export type PropertyInputs = {
   purchasePrice: number
   acquisitionCosts: number
   originalLoan: number
+  currentLoanBalance: number
+  totalMortgagePaymentsPaid: number
   annualRate: number
-  loanYears: number
+  remainingLoanYears: number
   salePrice: number
   saleCostsRate: number
   taxRate: number
@@ -12,7 +14,8 @@ export type PropertyInputs = {
 
 export type PropertyAnalysis = {
   totalCost: number
-  monthlyPayment: number
+  averageHistoricalMonthlyPayment: number
+  futureMonthlyPayment: number
   paidMonths: number
   totalMortgagePayments: number
   balance: number
@@ -114,22 +117,16 @@ export function calculatePropertyAnalysis(
   inputs: PropertyInputs,
 ): PropertyAnalysis {
   const totalCost = inputs.purchasePrice + inputs.acquisitionCosts
-  const paidMonths = Math.min(
-    Math.round(inputs.holdingYears * 12),
-    inputs.loanYears * 12,
-  )
-  const monthlyPayment = mortgagePayment(
-    inputs.originalLoan,
+  const paidMonths = Math.max(1, Math.round(inputs.holdingYears * 12))
+  const averageHistoricalMonthlyPayment =
+    inputs.totalMortgagePaymentsPaid / paidMonths
+  const futureMonthlyPayment = mortgagePayment(
+    inputs.currentLoanBalance,
     inputs.annualRate,
-    inputs.loanYears,
+    inputs.remainingLoanYears,
   )
-  const totalMortgagePayments = monthlyPayment * paidMonths
-  const balance = mortgageBalance(
-    inputs.originalLoan,
-    inputs.annualRate,
-    inputs.loanYears,
-    inputs.holdingYears,
-  )
+  const totalMortgagePayments = inputs.totalMortgagePaymentsPaid
+  const balance = inputs.currentLoanBalance
   const saleCosts = (inputs.salePrice * inputs.saleCostsRate) / 100
   const taxableGain = Math.max(
     0,
@@ -148,8 +145,8 @@ export function calculatePropertyAnalysis(
     -initialEquity,
     ...Array.from({ length: paidMonths }, (_, index) =>
       index === paidMonths - 1
-        ? netCash - monthlyPayment
-        : -monthlyPayment,
+        ? netCash - averageHistoricalMonthlyPayment
+        : -averageHistoricalMonthlyPayment,
     ),
   ]
   const leveragedIrr = annualizedMonthlyIrr(cashFlows)
@@ -164,7 +161,8 @@ export function calculatePropertyAnalysis(
 
   return {
     totalCost,
-    monthlyPayment,
+    averageHistoricalMonthlyPayment,
+    futureMonthlyPayment,
     paidMonths,
     totalMortgagePayments,
     balance,

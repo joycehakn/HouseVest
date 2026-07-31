@@ -3,7 +3,6 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import { Building2, Calculator, Landmark, LineChart, PiggyBank, SlidersHorizontal, Sparkles, X } from 'lucide-react'
 import {
   calculatePropertyAnalysis,
-  mortgageBalance,
   type PropertyInputs as Inputs,
 } from './calculations/propertyAnalysis'
 
@@ -11,8 +10,10 @@ const initial: Inputs = {
   purchasePrice: 14_100_000,
   acquisitionCosts: 230_867,
   originalLoan: 11_980_000,
+  currentLoanBalance: 10_485_197,
+  totalMortgagePaymentsPaid: 2_721_992,
   annualRate: 2.18,
-  loanYears: 30,
+  remainingLoanYears: 25,
   salePrice: 17_500_000,
   saleCostsRate: 4,
   taxRate: 20,
@@ -48,16 +49,16 @@ function App() {
     balance: {
       title: '貸款餘額',
       result: nt(result.balance),
-      summary: `以本息平均攤還、固定年利率 ${inputs.annualRate}% 計算持有 ${inputs.holdingYears} 年後的剩餘本金。`,
-      formula: '餘額 = 原始本金 × (1+r)^k − 月付金 × ((1+r)^k−1) ÷ r',
+      summary: '這是使用者依銀行帳單手動輸入的目前貸款本金餘額，不再由利率公式反推。',
+      formula: '目前貸款餘額 = 使用者輸入的銀行帳單餘額',
       rows: [
-        { label: '原始貸款', value: nt(inputs.originalLoan) },
-        { label: '月利率 r', value: `${(inputs.annualRate / 12).toFixed(4)}%` },
-        { label: '已付款期數 k', value: `${result.paidMonths} 期` },
-        { label: '每月本息付款', value: nt(result.monthlyPayment) },
-        { label: '期末貸款餘額', value: nt(result.balance), operator: '=' },
+        { label: '銀行帳單貸款餘額', value: nt(inputs.currentLoanBalance) },
+        { label: '目前利率（未來假設）', value: `${inputs.annualRate}%` },
+        { label: '剩餘貸款年限', value: `${inputs.remainingLoanYears} 年` },
+        { label: '依目前條件預估未來月付', value: nt(result.futureMonthlyPayment) },
+        { label: '目前貸款餘額', value: nt(result.balance), operator: '=' },
       ],
-      note: '假設利率固定、每月正常繳款，未納入寬限期、提前還款與違約金。',
+      note: '目前利率不參與今天的餘額計算，只作為未來 Scenario 的預測假設；未來若再次升降息，預測仍需更新。',
     },
     equity: {
       title: '房屋淨值',
@@ -106,13 +107,13 @@ function App() {
       formula: '找到月報酬率 r，使所有逐月現金流的 NPV = 0，再換算成年化 IRR',
       rows: [
         { label: '期初自有資金', value: `−${nt(result.initialEquity)}` },
-        { label: '每月房貸付款', value: `−${nt(result.monthlyPayment)}` },
+        { label: '平均每月歷史付款', value: `−${nt(result.averageHistoricalMonthlyPayment)}` },
         { label: '付款期數', value: `${result.paidMonths} 期` },
         { label: '累積房貸付款', value: `−${nt(result.totalMortgagePayments)}` },
         { label: '出售月份回收', value: nt(result.netCash) },
         { label: '年化 IRR', value: Number.isFinite(result.leveragedIrr) ? pct(result.leveragedIrr) : '無法計算', operator: '=' },
       ],
-      note: '這一版已改為正式的逐月現金流 IRR，但仍未納入持有稅費、管理費、修繕、租金收入與機會成本。',
+      note: '累積房貸付款為手動事實值，目前平均分配到每個月估算 IRR。若各月付款差異很大，要做到完全精確仍需逐月繳款紀錄；持有稅費、管理費、修繕與租金也尚未納入。',
     },
     profit: {
       title: '稅後獲利',
@@ -143,11 +144,16 @@ function App() {
     },
   }), [inputs, result])
 
-  const chart = useMemo(() => Array.from({ length: inputs.holdingYears + 1 }, (_, year) => {
-    const price = inputs.purchasePrice * Math.pow(inputs.salePrice / inputs.purchasePrice, year / inputs.holdingYears)
-    const balance = mortgageBalance(inputs.originalLoan, inputs.annualRate, inputs.loanYears, year)
-    return { year: `第${year}年`, equity: Math.max(0, price - balance) / 10_000 }
-  }), [inputs])
+  const chart = useMemo(() => [
+    {
+      year: '購入時',
+      equity: Math.max(0, inputs.purchasePrice - inputs.originalLoan) / 10_000,
+    },
+    {
+      year: '目前',
+      equity: Math.max(0, inputs.salePrice - inputs.currentLoanBalance) / 10_000,
+    },
+  ], [inputs])
 
   const update = (key: keyof Inputs, value: number) => setInputs(v => ({ ...v, [key]: value }))
 
@@ -168,7 +174,7 @@ function App() {
 
       <section className="metrics">
         <Card label="預估市值" value={nt(inputs.salePrice)} note="可用滑桿調整" onClick={() => setDetail(details.marketValue)} />
-        <Card label="貸款餘額" value={nt(result.balance)} note={`${inputs.annualRate}%・${inputs.loanYears} 年`} onClick={() => setDetail(details.balance)} />
+        <Card label="貸款餘額" value={nt(result.balance)} note="依銀行帳單手動輸入" onClick={() => setDetail(details.balance)} />
         <Card label="房屋淨值" value={nt(result.equity)} note="市值減貸款" onClick={() => setDetail(details.equity)} />
         <Card label="出售實拿" value={nt(result.netCash)} note="扣交易成本、稅與貸款" onClick={() => setDetail(details.netCash)} />
       </section>
@@ -190,13 +196,17 @@ function App() {
           <input type="range" min="16_000_000" max="20_000_000" step="100_000" value={inputs.salePrice} onChange={e => update('salePrice', Number(e.target.value))}/>
           <div className="range"><span>1,600 萬</span><span>2,000 萬</span></div>
           <Field label="持有年數" value={inputs.holdingYears} suffix="年" onChange={v => update('holdingYears', v)} />
+          <Field label="目前貸款餘額" value={inputs.currentLoanBalance} suffix="元" step={10_000} onChange={v => update('currentLoanBalance', v)} />
+          <Field label="累積已繳房貸" value={inputs.totalMortgagePaymentsPaid} suffix="元" step={10_000} onChange={v => update('totalMortgagePaymentsPaid', v)} />
+          <Field label="目前房貸利率" value={inputs.annualRate} suffix="%" step={0.01} onChange={v => update('annualRate', v)} />
+          <Field label="剩餘貸款年限" value={inputs.remainingLoanYears} suffix="年" onChange={v => update('remainingLoanYears', v)} />
           <Field label="出售成本率" value={inputs.saleCostsRate} suffix="%" step={0.1} onChange={v => update('saleCostsRate', v)} />
           <Field label="房地合一稅率" value={inputs.taxRate} suffix="%" step={1} onChange={v => update('taxRate', v)} />
         </article>
       </section>
 
       <section className="panel chartPanel">
-        <div className="panelTitle"><div><p className="eyebrow">EQUITY GROWTH</p><h2>房屋淨資產變化</h2></div></div>
+        <div className="panelTitle"><div><p className="eyebrow">EQUITY CHANGE</p><h2>購入時與目前房屋淨值</h2></div></div>
         <div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="year"/><YAxis tickFormatter={v => `${v}萬`}/><Tooltip formatter={(v) => [`${money(Number(v))} 萬`, '淨資產']}/><Area type="monotone" dataKey="equity" stroke="currentColor" fill="currentColor" fillOpacity={0.12}/></AreaChart></ResponsiveContainer></div>
       </section>
       {detail && <CalculationDrawer detail={detail} onClose={() => setDetail(null)} />}

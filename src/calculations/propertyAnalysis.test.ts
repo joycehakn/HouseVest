@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest"
 import {
   annualizedMonthlyIrr,
   calculatePropertyAnalysis,
-  mortgageBalance,
   mortgagePayment,
   type PropertyInputs,
 } from "./propertyAnalysis"
@@ -11,8 +10,10 @@ const inputs: PropertyInputs = {
   purchasePrice: 14_100_000,
   acquisitionCosts: 230_867,
   originalLoan: 11_980_000,
+  currentLoanBalance: 10_485_197,
+  totalMortgagePaymentsPaid: 2_721_992,
   annualRate: 2.18,
-  loanYears: 30,
+  remainingLoanYears: 25,
   salePrice: 17_500_000,
   saleCostsRate: 4,
   taxRate: 20,
@@ -20,12 +21,8 @@ const inputs: PropertyInputs = {
 }
 
 describe("mortgage calculations", () => {
-  it("calculates the fixed monthly payment and remaining balance", () => {
-    expect(mortgagePayment(11_980_000, 2.18, 30)).toBeCloseTo(45_366.53, 2)
-    expect(mortgageBalance(11_980_000, 2.18, 30, 5)).toBeCloseTo(
-      10_485_197.45,
-      2,
-    )
+  it("calculates a future payment from the current balance and assumptions", () => {
+    expect(mortgagePayment(10_485_197, 2.18, 25)).toBeCloseTo(45_366.52, 2)
   })
 })
 
@@ -55,6 +52,20 @@ describe("calculatePropertyAnalysis", () => {
     )
     expect(result.profit).toBeCloseTo(
       result.netCash - result.initialEquity - result.totalMortgagePayments,
+      6,
+    )
+  })
+
+  it("uses the user-entered balance instead of deriving it from interest", () => {
+    const result = calculatePropertyAnalysis({
+      ...inputs,
+      currentLoanBalance: 9_876_543,
+      annualRate: 9.99,
+    })
+
+    expect(result.balance).toBe(9_876_543)
+    expect(result.netCash).toBeCloseTo(
+      inputs.salePrice - result.saleCosts - result.tax - 9_876_543,
       6,
     )
   })

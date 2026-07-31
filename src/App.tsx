@@ -32,6 +32,8 @@ import {
   createValidationCase,
   loadValidationCase,
   saveValidationCase,
+  type ValidationField,
+  type ValidationStatus,
 } from './validation/validationCase'
 
 const landCityOptions = [
@@ -489,6 +491,24 @@ function App() {
   const refreshValidationCase = () => {
     setValidationCase(createValidationCase(activeProperty, scenario, result))
   }
+  const updateValidationStatus = (field: ValidationField, status: ValidationStatus) => {
+    setValidationCase(current => ({
+      ...current,
+      fieldStatuses: { ...current.fieldStatuses, [field]: status },
+    }))
+  }
+
+  const validationStatusSelect = (field: ValidationField, label: string) => (
+    <select
+      aria-label={`${label}資料狀態`}
+      value={validationCase.fieldStatuses[field]}
+      onChange={event => updateValidationStatus(field, event.target.value as ValidationStatus)}
+    >
+      <option value="confirmed">已確認</option>
+      <option value="estimated">推估</option>
+      <option value="pending">待補</option>
+    </select>
+  )
 
   return <div className="app">
     <aside>
@@ -510,17 +530,16 @@ function App() {
       <details className="validationCase" open>
         <summary><div><strong>案例 A</strong><span>以目前已儲存資料建立的固定驗算基準</span></div><small>{new Date(validationCase.createdAt).toLocaleString('zh-TW')}</small></summary>
         <div className="validationCaseBody">
-          <div className="validationStatuses"><span className="confirmed">已確認：房屋基本資料</span><span className="estimated">推估：成交價與稅務結果</span><span className="pending">待補：憑證與官方稅額核對</span></div>
           <div className="validationFacts">
-            <p><span>購入價格</span><strong>{nt(validationCase.property.purchasePrice)}</strong></p>
-            <p><span>案例成交價</span><strong>{nt(validationCase.scenario.salePrice)}</strong></p>
-            <p><span>賣房稅費</span><strong>{nt(validationCase.result.tax)}</strong></p>
-            <p><span>稅後淨利</span><strong>{nt(validationCase.result.profit)}</strong></p>
-            <p><span>CAGR</span><strong>{pct(validationCase.result.cagr)}</strong></p>
-            <p><span>自有資金 IRR</span><strong>{Number.isFinite(validationCase.result.leveragedIrr) ? pct(validationCase.result.leveragedIrr) : '無法計算'}</strong></p>
+            <p><span>購入價格</span><strong>{nt(validationCase.property.purchasePrice)}</strong>{validationStatusSelect('purchasePrice', '購入價格')}</p>
+            <p><span>案例成交價</span><strong>{nt(validationCase.scenario.salePrice)}</strong>{validationStatusSelect('salePrice', '案例成交價')}</p>
+            <p><span>賣房稅費</span><strong>{nt(validationCase.result.tax)}</strong>{validationStatusSelect('tax', '賣房稅費')}</p>
+            <p><span>稅後淨利</span><strong>{nt(validationCase.result.profit)}</strong>{validationStatusSelect('profit', '稅後淨利')}</p>
+            <p><span>CAGR</span><strong>{pct(validationCase.result.cagr)}</strong>{validationStatusSelect('cagr', 'CAGR')}</p>
+            <p><span>自有資金 IRR</span><strong>{Number.isFinite(validationCase.result.leveragedIrr) ? pct(validationCase.result.leveragedIrr) : '無法計算'}</strong>{validationStatusSelect('leveragedIrr', '自有資金 IRR')}</p>
           </div>
           <button type="button" onClick={refreshValidationCase}><RefreshCw size={14}/>以目前資料更新案例 A</button>
-          <small>案例 A 已獨立保存；後續修改基本資料不會改動本案例，除非按下更新。</small>
+          <small>每個狀態都會立即保存。案例 A 的數字不會因後續修改而變動，除非按下更新。</small>
         </div>
       </details>
       <header><div><p className="eyebrow">MY PROPERTY</p><h1>{activeProperty.name}資產儀表板</h1><p>{activeProperty.address || '尚未設定地址'}・用同一組已儲存資料理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>

@@ -10,6 +10,19 @@ export type ValidationScenario = {
   saleDate: string
 }
 
+export type ValidationStatus = 'confirmed' | 'estimated' | 'pending'
+export type ValidationField = 'purchasePrice' | 'salePrice' | 'tax' | 'profit' | 'cagr' | 'leveragedIrr'
+export type ValidationFieldStatuses = Record<ValidationField, ValidationStatus>
+
+export const defaultValidationFieldStatuses: ValidationFieldStatuses = {
+  purchasePrice: 'confirmed',
+  salePrice: 'estimated',
+  tax: 'pending',
+  profit: 'pending',
+  cagr: 'pending',
+  leveragedIrr: 'pending',
+}
+
 export type ValidationCase = {
   id: 'case-a'
   name: '案例 A'
@@ -18,6 +31,7 @@ export type ValidationCase = {
   property: PropertyProfile
   scenario: ValidationScenario
   result: Pick<PropertyAnalysis, 'tax' | 'profit' | 'netCash' | 'cagr' | 'leveragedIrr'>
+  fieldStatuses: ValidationFieldStatuses
 }
 
 export function createValidationCase(
@@ -40,6 +54,13 @@ export function createValidationCase(
       cagr: result.cagr,
       leveragedIrr: result.leveragedIrr,
     },
+    fieldStatuses: {
+      ...defaultValidationFieldStatuses,
+      tax: result.taxAnalysis.complete ? 'estimated' : 'pending',
+      profit: result.taxAnalysis.complete ? 'estimated' : 'pending',
+      cagr: result.taxAnalysis.complete ? 'estimated' : 'pending',
+      leveragedIrr: result.taxAnalysis.complete ? 'estimated' : 'pending',
+    },
   }
 }
 
@@ -49,7 +70,13 @@ export function loadValidationCase(storage: Pick<Storage, 'getItem'>): Validatio
     if (!saved) return null
     const parsed = JSON.parse(saved) as Partial<ValidationCase>
     return parsed.id === 'case-a' && parsed.property && parsed.scenario && parsed.result
-      ? parsed as ValidationCase
+      ? {
+          ...parsed,
+          fieldStatuses: {
+            ...defaultValidationFieldStatuses,
+            ...(parsed.fieldStatuses ?? {}),
+          },
+        } as ValidationCase
       : null
   } catch {
     return null

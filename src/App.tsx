@@ -322,7 +322,19 @@ function App() {
       summary: `把出售實拿減去期初自有資金，以及持有期間${result.mortgagePaymentMode === 'actual' ? '實際輸入' : '公式推估'}的全部房貸款。`,
       formula: '稅後獲利 = 出售實拿 − 期初自有資金 − 累積房貸付款',
       rows: [
-        { label: '出售實拿', value: nt(result.netCash) },
+        {
+          label: '出售實拿',
+          value: nt(result.netCash),
+          children: [
+            { label: '預估成交價', value: nt(inputs.salePrice) },
+            { label: `減：出售仲介費（${inputs.sellingAgencyFeeRate}%）`, value: nt(result.sellingAgencyFee) },
+            { label: '減：其他出售成本', value: nt(result.otherSellingCosts) },
+            { label: `減：${incomeTaxItemLabel}`, value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0) },
+            { label: '減：土地增值稅', value: nt(result.taxAnalysis.landValueIncrementTax) },
+            { label: '減：貸款餘額', value: nt(result.balance) },
+            { label: '等於：出售實拿', value: nt(result.netCash) },
+          ],
+        },
         { label: '期初自有資金', value: nt(result.initialEquity), operator: '−' },
         { label: `截至 ${inputs.mortgageDataDate} 累積付款`, value: nt(result.historicalMortgagePayments), operator: '−' },
         { label: '截至日至出售日預估付款', value: nt(result.futureMortgagePayments), operator: '−' },

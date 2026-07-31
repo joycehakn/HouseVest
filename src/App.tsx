@@ -90,6 +90,17 @@ function App() {
     saleDate: scenario.saleDate,
   }), [activeProperty, scenario])
   const result = useMemo(() => calculatePropertyAnalysis(inputs), [inputs])
+  const enteredAcquisitionCosts = useMemo(() => [
+    { label: '契稅', value: activeProperty.acquisitionCosts.deedTax },
+    { label: '印花稅', value: activeProperty.acquisitionCosts.stampTax },
+    { label: '登記與規費', value: activeProperty.acquisitionCosts.registrationFees },
+    { label: '購入仲介費', value: activeProperty.acquisitionCosts.agencyFee },
+    { label: '代書費', value: activeProperty.acquisitionCosts.legalFee },
+    ...activeProperty.customAcquisitionCosts.map(cost => ({
+      label: cost.name.trim() || '自訂取得成本',
+      value: cost.amount,
+    })),
+  ].filter(cost => cost.value > 0), [activeProperty])
   const scenarioComparisons = useMemo(() => [
     { offset: -1_000_000, label: '−100 萬' },
     { offset: -500_000, label: '−50 萬' },
@@ -163,7 +174,13 @@ function App() {
       rows: [
         { label: '預估成交價', value: nt(inputs.salePrice) },
         { label: '購入價格', value: nt(inputs.purchasePrice), operator: '−' },
-        { label: '可辨識取得成本', value: nt(inputs.acquisitionCosts), operator: '−' },
+        ...(enteredAcquisitionCosts.length > 0
+          ? enteredAcquisitionCosts.map(cost => ({
+              label: `取得成本：${cost.label}`,
+              value: nt(cost.value),
+            }))
+          : [{ label: '取得成本明細', value: '尚未輸入任何項目' }]),
+        { label: '可辨識取得成本合計', value: nt(inputs.acquisitionCosts), operator: '−' },
         { label: `稅法認列出售費用（${inputs.taxProfile.sellingExpenseMethod === 'documented' ? '憑證' : '法定推計'}）`, value: nt(result.taxAnalysis.recognizedSellingExpenses), operator: '−' },
         { label: '交易所得', value: nt(result.taxAnalysis.transactionIncome), operator: '=' },
         { label: '前3年房地交易損失', value: nt(inputs.taxProfile.priorThreeYearTransactionLoss), operator: '−' },
@@ -245,7 +262,7 @@ function App() {
       ],
       note: '此權重尚未校準或驗證，只保留作為介面原型；進行投資判斷時請直接查看可驗證的財務數字。',
     },
-  }), [inputs, result])
+  }), [enteredAcquisitionCosts, inputs, result])
 
   const chart = useMemo(() => [
     {

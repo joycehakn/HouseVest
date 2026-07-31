@@ -396,8 +396,8 @@ function App() {
             </div>
             {scenario.customSellingCosts.length === 0 && <p>目前沒有其他固定費用</p>}
             {scenario.customSellingCosts.map(cost => <div className="sellingCostRow" key={cost.id}>
-              <input aria-label="出售成本名稱" placeholder="例如：代書費" value={cost.name} onChange={event => updateSellingCost(cost.id, { name: event.target.value })} />
-              <input aria-label={`${cost.name || '出售成本'}金額`} type="number" min="0" placeholder="金額" value={cost.amount || ''} onChange={event => updateSellingCost(cost.id, { amount: event.target.value === '' ? 0 : Number(event.target.value) })} />
+              <label><span>費用名稱</span><input aria-label="出售成本名稱" placeholder="例如：代書費、清潔費" value={cost.name} onChange={event => updateSellingCost(cost.id, { name: event.target.value })} /></label>
+              <label><span>金額</span><div><em>NT$</em><input aria-label={`${cost.name || '出售成本'}金額`} type="number" min="0" placeholder="0" value={cost.amount || ''} onChange={event => updateSellingCost(cost.id, { amount: event.target.value === '' ? 0 : Number(event.target.value) })} /></div></label>
               <button type="button" aria-label={`刪除${cost.name || '出售成本'}`} onClick={() => removeSellingCost(cost.id)}><Trash2 size={13}/></button>
             </div>)}
             <div className="sellingCostTotal"><span>出售成本合計</span><strong>{nt(result.saleCosts)}</strong></div>

@@ -120,6 +120,9 @@ function App() {
     saleDate: scenario.saleDate,
   }), [activeProperty, scenario])
   const result = useMemo(() => calculatePropertyAnalysis(inputs), [inputs])
+  const incomeTaxItemLabel = result.taxAnalysis.regime === 'legacy'
+    ? '舊制財產交易所得稅'
+    : `房地交易所得稅（${result.taxAnalysis.regimeLabel}）`
   const enteredAcquisitionCosts = useMemo(() => [
     { label: '契稅', value: activeProperty.acquisitionCosts.deedTax },
     { label: '印花稅', value: activeProperty.acquisitionCosts.stampTax },
@@ -204,7 +207,7 @@ function App() {
         { label: '預估成交價', value: nt(inputs.salePrice) },
         { label: `出售仲介費（${inputs.sellingAgencyFeeRate}%）`, value: nt(result.sellingAgencyFee), operator: '−' },
         { label: '其他出售成本', value: nt(result.otherSellingCosts), operator: '−' },
-        { label: '房地交易所得稅', value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '−' },
+        { label: incomeTaxItemLabel, value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '−' },
         { label: '土地增值稅', value: nt(result.taxAnalysis.landValueIncrementTax), operator: '−' },
         { label: '貸款餘額', value: nt(result.balance), operator: '−' },
         { label: '出售實拿', value: nt(result.netCash), operator: '=' },
@@ -256,7 +259,7 @@ function App() {
         { label: '課稅所得', value: nt(result.taxAnalysis.taxableIncome), operator: '=' },
         ...(result.taxAnalysis.selfUseQualified ? [{ label: '自住房地免稅額', value: nt(result.taxAnalysis.selfUseExemption), operator: '−' }] : []),
         { label: `適用稅率 ${result.taxAnalysis.appliedRate ?? '—'}%`, value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '×' },
-        { label: '房地交易所得稅', value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '=' },
+        { label: incomeTaxItemLabel, value: nt(result.taxAnalysis.houseLandIncomeTax ?? 0), operator: '=' },
         { label: '土地增值稅', value: inputs.taxProfile.landValueIncrementTax === null ? '尚未填寫' : nt(result.taxAnalysis.landValueIncrementTax), operator: '+' },
         { label: '稅費合計（退稅前）', value: nt(result.taxAnalysis.totalTax ?? 0), operator: '=' },
         { label: '房地合一重購退稅', value: nt(result.taxAnalysis.houseLandRepurchaseRefund), operator: '−' },
@@ -333,7 +336,7 @@ function App() {
       ],
       note: '此權重尚未校準或驗證，只保留作為介面原型；進行投資判斷時請直接查看可驗證的財務數字。',
     },
-  }), [enteredAcquisitionCosts, enteredSellingCosts, inputs, result])
+  }), [enteredAcquisitionCosts, enteredSellingCosts, incomeTaxItemLabel, inputs, result])
 
   useEffect(() => {
     setDetail(current => {
@@ -482,7 +485,7 @@ function App() {
       <header><div><p className="eyebrow">MY PROPERTY</p><h1>{activeProperty.name}資產儀表板</h1><p>{activeProperty.address || '尚未設定地址'}・用同一組已儲存資料理解房價、貸款、稅金與自有資金績效。</p></div><button className="score" onClick={() => setDetail(details.score)}><span>HouseVest Score</span><strong>{result.score}</strong><small>/ 100</small><em>查看依據</em></button></header>
 
       <section className="metrics">
-        <Card label="賣房稅費" value={result.taxAnalysis.complete ? nt(result.tax) : `${nt(result.tax)}（資料未齊）`} note={`${result.taxAnalysis.regimeLabel}・查看法規判定`} onClick={() => setDetail(details.transactionTax)} />
+        <Card label={`賣房稅費・${result.taxAnalysis.regimeLabel}`} value={result.taxAnalysis.complete ? nt(result.tax) : `${nt(result.tax)}（資料未齊）`} note="查看稅制、稅率與完整計算" onClick={() => setDetail(details.transactionTax)} />
       </section>
 
       <section className="grid">
@@ -493,7 +496,7 @@ function App() {
             <table className="scenarioTable">
               <thead><tr><th>投資績效</th>{scenarioComparisons.map(item => <th className={item.offset === 0 ? 'baseline' : ''} key={item.offset}><span>{item.label}</span><strong>{nt(item.salePrice)}</strong></th>)}</tr></thead>
               <tbody>
-                <tr><th>所得稅初估</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.tax)}</td>)}</tr>
+                <tr><th>{result.taxAnalysis.regimeLabel}初估</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.tax)}</td>)}</tr>
                 <tr><th>出售實拿</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.netCash)}</td>)}</tr>
                 <tr><th>稅後獲利</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.profit)}</td>)}</tr>
                 <tr><th>房屋 CAGR</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{pct(item.result.cagr)}</td>)}</tr>

@@ -9,6 +9,65 @@ npm install
 npm run dev
 ```
 
+## HouseVest Engine v0.1
+
+第一版引擎位於 `src/engine`，用純 TypeScript 描述：
+
+- `PortfolioState`：現金、資產與負債
+- `EffectEngine`：套用現金、資產與負債變化
+- `SellProperty`：出售房產、清償房貸並增加現金
+- `BuyProperty`：支付自備款、加入房產與房貸
+- `InvestETF`：減少現金並加入 ETF 資產
+- `ActionEngine`：依序解析 Action、套用 Effects、回傳新 State
+
+執行測試：
+
+```bash
+npm test
+```
+
+最小使用方式：
+
+```ts
+import {
+  SellProperty,
+  executeAction,
+  type PortfolioState,
+} from "./src/engine";
+
+const initialState: PortfolioState = {
+  cash: 2_000_000,
+  assets: [
+    {
+      id: "property-a",
+      type: "PROPERTY",
+      value: 15_000_000,
+      costBasis: 12_000_000,
+    },
+  ],
+  liabilities: [
+    {
+      id: "mortgage-a",
+      type: "MORTGAGE",
+      propertyId: "property-a",
+      balance: 8_000_000,
+      annualInterestRate: 0.025,
+      termYears: 30,
+    },
+  ],
+};
+
+const result = executeAction(
+  initialState,
+  new SellProperty({
+    propertyId: "property-a",
+    salePrice: 16_000_000,
+  }),
+);
+
+console.log(result.nextState);
+```
+
 ## 部署到目前的 GitHub Pages
 
 此專案已將 Vite base 設為 `/house-investment-app/`，並附上 GitHub Actions workflow。

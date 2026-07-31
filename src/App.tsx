@@ -28,6 +28,7 @@ import {
   inferCityCode,
 } from './land/officialLandValue'
 import { fetchTaxCpi } from './land/taxCpi'
+import { addYears, createDateScenarioComparisons } from './scenarios/dateScenarios'
 import {
   createValidationCase,
   loadValidationCase,
@@ -98,6 +99,7 @@ function App() {
   }))
   const [editingProperty, setEditingProperty] = useState<PropertyProfile | null>(null)
   const [detail, setDetail] = useState<CalculationDetail | null>(null)
+  const [comparisonMode, setComparisonMode] = useState<'price' | 'date'>('price')
   const inputs = useMemo<Inputs>(() => ({
     purchasePrice: activeProperty.purchasePrice,
     acquisitionCosts: totalAcquisitionCosts(
@@ -179,12 +181,42 @@ function App() {
       result: calculatePropertyAnalysis({ ...inputs, salePrice }),
     }
   }), [inputs])
-  const scenarioChartData = useMemo(() => scenarioComparisons.map(item => ({
+  const dateComparisons = useMemo(() => createDateScenarioComparisons(inputs), [inputs])
+  const comparisonItems = useMemo(() => comparisonMode === 'price'
+    ? scenarioComparisons.map(item => ({
+        key: `price-${item.offset}`,
+        label: item.label,
+        sublabel: nt(item.salePrice),
+        salePrice: item.salePrice,
+        saleDate: inputs.saleDate,
+        baseline: item.offset === 0,
+        adjustment: `${item.offset >= 0 ? '+' : '−'}${nt(Math.abs(item.offset))}`,
+        result: item.result,
+      }))
+    : dateComparisons.map(item => ({
+        key: `date-${item.months}`,
+        label: item.label,
+        sublabel: item.saleDate,
+        salePrice: inputs.salePrice,
+        saleDate: item.saleDate,
+        baseline: item.months === 0,
+        adjustment: item.months === 0 ? '基準出售日' : `基準日後 ${item.months} 個月`,
+        result: item.result,
+      })), [comparisonMode, dateComparisons, inputs.saleDate, inputs.salePrice, scenarioComparisons])
+  const scenarioChartData = useMemo(() => comparisonItems.map(item => ({
     name: item.label,
-    salePrice: item.salePrice,
     tax: item.result.tax,
     profit: item.result.profit,
-  })), [scenarioComparisons])
+  })), [comparisonItems])
+  const taxThresholds = useMemo(() => [
+    { years: 2, strict: true, label: '持有超過 2 年', note: '房地合一稅 2.0 一般稅率可能由 45% 降至 35%' },
+    { years: 5, strict: true, label: '持有超過 5 年', note: '一般稅率可能由 35% 降至 20%' },
+    { years: 6, strict: false, label: '持有滿 6 年', note: '可能具備自住房地優惠的年限門檻，仍須符合設籍與使用條件' },
+    { years: 10, strict: true, label: '持有超過 10 年', note: '一般稅率可能由 20% 降至 15%' },
+  ].map(item => {
+    const anniversary = addYears(inputs.purchaseDate, item.years)
+    return { ...item, date: item.strict ? dayAfter(anniversary) : anniversary }
+  }), [inputs.purchaseDate])
 
   const details = useMemo<Record<string, CalculationDetail>>(() => ({
     marketValue: {
@@ -380,17 +412,23 @@ function App() {
     })
   }, [details])
 
-  const showScenarioDetail = (scenarioResult: typeof scenarioComparisons[number]) => {
+  const showScenarioDetail = (scenarioResult: typeof comparisonItems[number]) => {
     const comparison = scenarioResult.result
+    const isPriceMode = comparisonMode === 'price'
     setDetail({
-      title: `${scenarioResult.label}成交價情境`,
-      result: nt(scenarioResult.salePrice),
-      summary: '這五個情境只改變預估成交價，其餘房屋、貸款、稅率、成本與出售日期完全相同。',
-      formula: '情境成交價 = 基準預估成交價 ± 情境差額',
+      title: `${scenarioResult.label}${isPriceMode ? '成交價' : '成交日期'}情境`,
+      result: isPriceMode ? nt(scenarioResult.salePrice) : scenarioResult.saleDate,
+      summary: isPriceMode
+        ? '這五個情境只改變預估成交價，其餘房屋、貸款、成本與出售日期相同。'
+        : '這五個情境只改變預估成交日期，成交價與其他成本假設相同；持有期間、房貸付款、稅率與績效會重新計算。',
+      formula: isPriceMode ? '情境成交價 = 基準預估成交價 ± 情境差額' : '情境出售日 = 基準出售日 + 情境期間',
       rows: [
-        { label: '基準預估成交價', value: nt(inputs.salePrice) },
-        { label: '情境調整', value: `${scenarioResult.offset >= 0 ? '+' : '−'}${nt(Math.abs(scenarioResult.offset))}` },
+        { label: isPriceMode ? '基準預估成交價' : '基準出售日', value: isPriceMode ? nt(inputs.salePrice) : inputs.saleDate },
+        { label: '情境調整', value: scenarioResult.adjustment },
         { label: '情境成交價', value: nt(scenarioResult.salePrice), operator: '=' },
+        { label: '情境出售日', value: scenarioResult.saleDate },
+        { label: '持有期間', value: `${comparison.holdingYears.toFixed(3)} 年` },
+        { label: '推估適用稅率', value: comparison.taxAnalysis.appliedRate === null ? '資料不足' : `${comparison.taxAnalysis.appliedRate}%` },
         { label: `出售仲介費（${inputs.sellingAgencyFeeRate}%）`, value: nt(comparison.sellingAgencyFee), operator: '−' },
         { label: '其他出售成本', value: nt(comparison.otherSellingCosts), operator: '−' },
         { label: '出售成本合計', value: nt(comparison.saleCosts), operator: '=' },
@@ -571,8 +609,12 @@ function App() {
 
       <section className="grid">
         <article className="panel performance">
-          <div className="panelTitle"><div><p className="eyebrow">PRICE SCENARIO COMPARISON</p><h2>五種成交價情境比較</h2></div><Sparkles size={20}/></div>
-          <p className="comparisonSummary">以目前設定的 {nt(inputs.salePrice)} 為基準，自動比較上下 50 萬與 100 萬的投資結果。</p>
+          <div className="panelTitle"><div><p className="eyebrow">SCENARIO COMPARISON</p><h2>{comparisonMode === 'price' ? '五種成交價情境比較' : '五種成交日期情境比較'}</h2></div><Sparkles size={20}/></div>
+          <div className="comparisonMode" role="group" aria-label="情境比較模式"><button className={comparisonMode === 'price' ? 'active' : ''} onClick={() => setComparisonMode('price')}>成交價</button><button className={comparisonMode === 'date' ? 'active' : ''} onClick={() => setComparisonMode('date')}>成交日期</button></div>
+          <p className="comparisonSummary">{comparisonMode === 'price'
+            ? `固定出售日 ${inputs.saleDate}，以 ${nt(inputs.salePrice)} 為基準比較上下 50 萬與 100 萬。`
+            : `固定成交價 ${nt(inputs.salePrice)}，比較基準出售日與半年、1 年、2 年、3 年後的結果。`}</p>
+          {comparisonMode === 'date' && <div className="taxThresholds"><strong>稅率與資格臨界點</strong>{taxThresholds.map(item => <p className={item.date > inputs.saleDate ? 'upcoming' : 'passed'} key={item.years}><span>{item.date}・{item.label}</span><small>{item.note}</small></p>)}</div>}
           <div className="scenarioVisuals">
             <section className="scenarioChart">
               <h3>稅金與稅後淨利</h3>
@@ -581,7 +623,7 @@ function App() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                   <YAxis width={50} tick={{ fontSize: 10 }} tickFormatter={value => `${Math.round(Number(value) / 10_000)}萬`} />
-                  <Tooltip formatter={(value, name) => [nt(Number(value)), name === 'tax' ? '稅金' : '稅後淨利']} labelFormatter={label => `${label}成交價情境`} />
+                  <Tooltip formatter={(value, name) => [nt(Number(value)), name === 'tax' ? '稅金' : '稅後淨利']} labelFormatter={label => `${label}${comparisonMode === 'price' ? '成交價' : '成交日期'}情境`} />
                   <Legend formatter={value => value === 'tax' ? '稅金' : '稅後淨利'} />
                   <ReferenceLine y={0} stroke="#64748b" />
                   <Bar dataKey="tax" fill="#f59e0b" radius={[5, 5, 0, 0]}>
@@ -598,12 +640,13 @@ function App() {
             <summary>查看完整數字與計算依據</summary>
             <div className="scenarioTableWrap">
               <table className="scenarioTable">
-                <thead><tr><th>投資績效</th>{scenarioComparisons.map(item => <th className={item.offset === 0 ? 'baseline' : ''} key={item.offset}><span>{item.label}</span><strong>{nt(item.salePrice)}</strong></th>)}</tr></thead>
+                <thead><tr><th>投資績效</th>{comparisonItems.map(item => <th className={item.baseline ? 'baseline' : ''} key={item.key}><span>{item.label}</span><strong>{item.sublabel}</strong></th>)}</tr></thead>
                 <tbody>
-                  <tr><th>{result.taxAnalysis.regimeLabel}初估</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.tax)}</td>)}</tr>
-                  <tr><th>稅後淨利</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{nt(item.result.profit)}</td>)}</tr>
-                  <tr><th>自有資金 IRR</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}>{Number.isFinite(item.result.leveragedIrr) ? pct(item.result.leveragedIrr) : '無法計算'}</td>)}</tr>
-                  <tr className="scenarioActions"><th>計算依據</th>{scenarioComparisons.map(item => <td className={item.offset === 0 ? 'baseline' : ''} key={item.offset}><button onClick={() => showScenarioDetail(item)}><Calculator size={13}/>查看</button></td>)}</tr>
+                  {comparisonMode === 'date' && <tr><th>持有期間／稅率</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{item.result.holdingYears.toFixed(2)} 年／{item.result.taxAnalysis.appliedRate === null ? '待補' : `${item.result.taxAnalysis.appliedRate}%`}</td>)}</tr>}
+                  <tr><th>賣房稅費初估</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{nt(item.result.tax)}</td>)}</tr>
+                  <tr><th>稅後淨利</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{nt(item.result.profit)}</td>)}</tr>
+                  <tr><th>自有資金 IRR</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}>{Number.isFinite(item.result.leveragedIrr) ? pct(item.result.leveragedIrr) : '無法計算'}</td>)}</tr>
+                  <tr className="scenarioActions"><th>計算依據</th>{comparisonItems.map(item => <td className={item.baseline ? 'baseline' : ''} key={item.key}><button onClick={() => showScenarioDetail(item)}><Calculator size={13}/>查看</button></td>)}</tr>
                 </tbody>
               </table>
             </div>

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Building2, Calculator, HousePlus, Landmark, LineChart, Pencil, PiggyBank, SlidersHorizontal, Sparkles, X } from 'lucide-react'
+import { Building2, Calculator, Camera, HousePlus, Landmark, LineChart, Pencil, PiggyBank, SlidersHorizontal, Sparkles, X } from 'lucide-react'
 import {
   calculatePropertyAnalysis,
   type PropertyInputs as Inputs,
@@ -14,6 +14,7 @@ import {
   type PropertyDatabase,
   type PropertyProfile,
 } from './properties/propertyProfiles'
+import { DocumentRecognition } from './ai/DocumentRecognition'
 
 type ScenarioInputs = {
   salePrice: number
@@ -322,6 +323,7 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
 }
 
 function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: PropertyProfile; onChange: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
+  const [recognizing, setRecognizing] = useState(false)
   const updateText = (key: 'name' | 'address' | 'purchaseDate', value: string) =>
     onChange({ ...profile, [key]: value })
   const updateNumber = (key: 'purchasePrice' | 'originalLoan' | 'currentLoanBalance' | 'totalMortgagePaymentsPaid' | 'annualRate' | 'remainingLoanYears' | 'currentMarketValue', value: number) =>
@@ -334,6 +336,7 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
     <aside className="drawer propertyEditor" role="dialog" aria-modal="true" aria-label="房屋基本資料" onMouseDown={event => event.stopPropagation()}>
       <div className="drawerHeader"><div><p className="eyebrow">PROPERTY DATABASE</p><h2>房屋基本資料</h2></div><button aria-label="關閉房屋基本資料" onClick={onClose}><X size={20}/></button></div>
       <p className="drawerSummary">儲存後，Dashboard、出售分析、CAGR 與 IRR 都會共用這份資料。</p>
+      <button className="openRecognition" type="button" onClick={() => setRecognizing(true)}><Camera size={17}/>從多張文件照片帶入資料</button>
       <form onSubmit={event => { event.preventDefault(); onSave(profile) }}>
         <EditorSection title="識別資料">
           <TextInput label="房屋名稱" value={profile.name} onChange={value => updateText('name', value)} required />
@@ -361,6 +364,7 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
         <div className="storageNote">資料只儲存在這台裝置的此瀏覽器中，不會上傳到伺服器。</div>
         <button className="saveProperty" type="submit">儲存並套用</button>
       </form>
+      {recognizing && <DocumentRecognition profile={profile} onApply={next => { onChange(next); setRecognizing(false) }} onClose={() => setRecognizing(false)} />}
     </aside>
   </div>
 }

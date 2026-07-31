@@ -11,7 +11,7 @@ export type ValidationScenario = {
 }
 
 export type ValidationStatus = 'confirmed' | 'estimated' | 'pending'
-export type ValidationField = 'purchasePrice' | 'acquisitionCosts' | 'currentLoanBalance' | 'historicalMortgagePayments' | 'salePrice' | 'sellingAgencyFeeRate' | 'otherSellingCosts' | 'tax' | 'profit' | 'cagr' | 'leveragedIrr'
+export type ValidationField = 'purchasePrice' | 'acquisitionCosts' | 'currentLoanBalance' | 'historicalMortgagePayments' | 'salePrice' | 'sellingAgencyFeeRate' | 'otherSellingCosts' | 'taxRegimeAndHoldingPeriod' | 'recognizedAcquisitionCosts' | 'recognizedSellingExpenses' | 'landPriceIncrementTotal' | 'taxQualifications' | 'tax' | 'profit' | 'cagr' | 'leveragedIrr'
 export type ValidationFieldStatuses = Record<ValidationField, ValidationStatus>
 
 export const defaultValidationFieldStatuses: ValidationFieldStatuses = {
@@ -22,6 +22,11 @@ export const defaultValidationFieldStatuses: ValidationFieldStatuses = {
   salePrice: 'estimated',
   sellingAgencyFeeRate: 'confirmed',
   otherSellingCosts: 'pending',
+  taxRegimeAndHoldingPeriod: 'pending',
+  recognizedAcquisitionCosts: 'pending',
+  recognizedSellingExpenses: 'pending',
+  landPriceIncrementTotal: 'pending',
+  taxQualifications: 'pending',
   tax: 'pending',
   profit: 'pending',
   cagr: 'pending',
@@ -37,6 +42,11 @@ export type ValidationCase = {
   scenario: ValidationScenario
   result: Pick<PropertyAnalysis, 'tax' | 'profit' | 'netCash' | 'cagr' | 'leveragedIrr'> &
     Partial<Pick<PropertyAnalysis, 'historicalMortgagePayments'>>
+  taxReview?: {
+    regimeLabel: string
+    holdingYears: number
+    recognizedSellingExpenses: number
+  }
   fieldStatuses: ValidationFieldStatuses
 }
 
@@ -67,6 +77,11 @@ export function createValidationCase(
       profit: result.taxAnalysis.complete ? 'estimated' : 'pending',
       cagr: result.taxAnalysis.complete ? 'estimated' : 'pending',
       leveragedIrr: result.taxAnalysis.complete ? 'estimated' : 'pending',
+    },
+    taxReview: {
+      regimeLabel: result.taxAnalysis.regimeLabel,
+      holdingYears: result.taxAnalysis.holdingYears,
+      recognizedSellingExpenses: result.taxAnalysis.recognizedSellingExpenses,
     },
   }
 }

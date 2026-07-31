@@ -538,6 +538,11 @@ function App() {
             <p><span>案例成交價</span><strong>{nt(validationCase.scenario.salePrice)}</strong>{validationStatusSelect('salePrice', '案例成交價')}</p>
             <p><span>出售仲介費率</span><strong>{pct(validationCase.scenario.sellingAgencyFeeRate)}</strong>{validationStatusSelect('sellingAgencyFeeRate', '出售仲介費率')}</p>
             <p><span>其他出售成本</span><strong>{nt(validationCase.scenario.customSellingCosts.reduce((total, cost) => total + cost.amount, 0))}</strong>{validationStatusSelect('otherSellingCosts', '其他出售成本')}</p>
+            <p><span>適用稅制與持有期間</span><strong>{validationCase.taxReview?.regimeLabel ?? result.taxAnalysis.regimeLabel}・{(validationCase.taxReview?.holdingYears ?? result.taxAnalysis.holdingYears).toFixed(3)} 年</strong>{validationStatusSelect('taxRegimeAndHoldingPeriod', '適用稅制與持有期間')}</p>
+            <p><span>可辨識取得成本</span><strong>{nt(totalAcquisitionCosts(validationCase.property.acquisitionCosts, validationCase.property.customAcquisitionCosts))}</strong>{validationStatusSelect('recognizedAcquisitionCosts', '可辨識取得成本')}</p>
+            <p><span>稅法認列出售費用</span><strong>{nt(validationCase.taxReview?.recognizedSellingExpenses ?? result.taxAnalysis.recognizedSellingExpenses)}</strong>{validationStatusSelect('recognizedSellingExpenses', '稅法認列出售費用')}</p>
+            <p><span>土地漲價總數額</span><strong>{validationCase.property.taxProfile.landPriceIncrementTotal === null ? '尚待交易時確認' : nt(validationCase.property.taxProfile.landPriceIncrementTotal)}</strong>{validationStatusSelect('landPriceIncrementTotal', '土地漲價總數額')}</p>
+            <p><span>扣抵損失及自住、重購資格</span><strong>尚待交易時確認</strong>{validationStatusSelect('taxQualifications', '扣抵損失及自住、重購資格')}</p>
             <p><span>賣房稅費</span><strong>{nt(validationCase.result.tax)}</strong>{validationStatusSelect('tax', '賣房稅費')}</p>
             <p><span>稅後淨利</span><strong>{nt(validationCase.result.profit)}</strong>{validationStatusSelect('profit', '稅後淨利')}</p>
             <p><span>CAGR</span><strong>{pct(validationCase.result.cagr)}</strong>{validationStatusSelect('cagr', 'CAGR')}</p>

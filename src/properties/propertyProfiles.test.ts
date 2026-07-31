@@ -60,4 +60,18 @@ describe("property profiles", () => {
       amount: 12_345,
     }])
   })
+
+  it("keeps an explicitly emptied custom-cost list empty after reload", () => {
+    const legacy = createDefaultDatabase()
+    const property = legacy.properties[0] as unknown as {
+      acquisitionCosts: Record<string, number>
+      customAcquisitionCosts: unknown[]
+    }
+    property.acquisitionCosts.otherCosts = 12_345
+    property.customAcquisitionCosts = []
+    const storage = { getItem: () => JSON.stringify(legacy) }
+
+    expect(loadPropertyDatabase(storage).properties[0].customAcquisitionCosts)
+      .toEqual([])
+  })
 })

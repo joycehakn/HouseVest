@@ -372,7 +372,7 @@ function App() {
       currentMarketValue: 0,
     })
   }
-  const saveProfile = (profile: PropertyProfile) => {
+  const persistProfile = (profile: PropertyProfile) => {
     const exists = database.properties.some(property => property.id === profile.id)
     const properties = exists
       ? database.properties.map(property => property.id === profile.id ? profile : property)
@@ -385,6 +385,9 @@ function App() {
         ? dayAfter(profile.mortgageDataDate)
         : current.saleDate,
     }))
+  }
+  const saveProfile = (profile: PropertyProfile) => {
+    persistProfile(profile)
     setEditingProperty(null)
   }
 
@@ -458,7 +461,7 @@ function App() {
         <div className="chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="year"/><YAxis tickFormatter={v => `${v}萬`}/><Tooltip formatter={(v) => [`${money(Number(v))} 萬`, '淨資產']}/><Area type="monotone" dataKey="equity" stroke="currentColor" fill="currentColor" fillOpacity={0.12}/></AreaChart></ResponsiveContainer></div>
       </section>
       {detail && <CalculationDrawer detail={detail} onClose={() => setDetail(null)} />}
-      {editingProperty && <PropertyEditor profile={editingProperty} onChange={setEditingProperty} onSave={saveProfile} onClose={() => setEditingProperty(null)} />}
+      {editingProperty && <PropertyEditor profile={editingProperty} onChange={setEditingProperty} onPersist={persistProfile} onSave={saveProfile} onClose={() => setEditingProperty(null)} />}
     </main>
   </div>
 }
@@ -493,7 +496,7 @@ function CalculationDrawer({ detail, onClose }: { detail: CalculationDetail; onC
   </div>
 }
 
-function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: PropertyProfile; onChange: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
+function PropertyEditor({ profile, onChange, onPersist, onSave, onClose }: { profile: PropertyProfile; onChange: (profile: PropertyProfile) => void; onPersist: (profile: PropertyProfile) => void; onSave: (profile: PropertyProfile) => void; onClose: () => void }) {
   const [recognizing, setRecognizing] = useState(false)
   const updateText = (key: 'name' | 'address' | 'purchaseDate' | 'mortgageDataDate', value: string) =>
     onChange({ ...profile, [key]: value })
@@ -516,10 +519,14 @@ function PropertyEditor({ profile, onChange, onSave, onClose }: { profile: Prope
       customAcquisitionCosts: profile.customAcquisitionCosts.map(cost =>
         cost.id === id ? { ...cost, ...changes } : cost),
     })
-  const removeCustomCost = (id: string) => onChange({
-    ...profile,
-    customAcquisitionCosts: profile.customAcquisitionCosts.filter(cost => cost.id !== id),
-  })
+  const removeCustomCost = (id: string) => {
+    const next = {
+      ...profile,
+      customAcquisitionCosts: profile.customAcquisitionCosts.filter(cost => cost.id !== id),
+    }
+    onChange(next)
+    onPersist(next)
+  }
   const acquisitionCostTotal = totalAcquisitionCosts(
     profile.acquisitionCosts,
     profile.customAcquisitionCosts,
